@@ -1,0 +1,7 @@
+﻿services:
+  temperaturesystem:
+    image: temperaturesystem
+    build:
+      context: .
+      dockerfile: TemperatureSystem/Dockerfile
+

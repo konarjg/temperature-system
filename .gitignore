@@ -1,0 +1,84 @@
+# ############################################################################
+# ## GENERAL .NET & BUILD ARTIFACTS
+# ############################################################################
+
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Don't commit the entire build folder
+/[Bb]uild/
+
+# Publishing artifacts
+/publish/
+
+# NuGet packages
+# This is for older package management styles. Modern .NET doesn't need this,
+# but it's good practice to keep it for compatibility.
+[Pp]ackages/
+*.nupkg
+
+# The packages folder can be ignored because of Package Restore
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# Do not commit finalizer queue files
+*.finalizer.queue
+
+# Don't commit temporary files generated during builds
+*.tlog
+
+# ############################################################################
+# ## VISUAL STUDIO SPECIFIC
+# ############################################################################
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code settings
+.vscode/
+
+# Visual Studio cache and generated files
+.vs/
+*.vcxproj.filters
+*.vcxproj.user
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.[Pp]ublish.xml
+*.builds
+
+# ############################################################################
+# ## JETBRAINS RIDER SPECIFIC
+# ############################################################################
+
+# Rider project settings and caches
+.idea/
+/_ReSharper.*/
+*.sln.iml
+*.DotSettings.user
+riderModule.iml
+
+# ############################################################################
+# ## OTHER COMMON EXCLUSIONS
+# ############################################################################
+
+# Log files
+*.log
+logs/
+
+# Environment variables
+.env
+*.env
+.env.*
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# ############################################################################

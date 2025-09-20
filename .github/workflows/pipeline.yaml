@@ -1,0 +1,61 @@
+name: Temperature System CI/CD
+
+on:
+  # 1. Trigger on pushes to ANY branch
+  push:
+
+  # 2. Trigger on a pull request being opened or updated against the main branch
+  pull_request:
+    branches:
+      - 'main'
+
+jobs:
+  ci-cd-pipeline: 
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup .NET environment
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      # 3. Run unit tests
+      # This step runs on EVERY trigger (feature branch pushes and PRs to main)
+      - name: Run unit tests
+        run: dotnet test UnitTests/UnitTests.csproj --verbosity normal
+
+      # 4. Run integration tests
+      # This step ONLY runs when the event is a pull request
+      - name: Run integration tests
+        if: github.event_name == 'pull_request'
+        run: dotnet test IntegrationTests/IntegrationTests.csproj --verbosity normal
+
+      # 5. Set up Docker Buildx
+      # This and all subsequent steps ONLY run on pull requests to main
+      - name: Set up Docker Buildx
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        uses: docker/setup-buildx-action@v3
+
+      # 6. Log in to Docker Hub
+      - name: Log in to Docker Hub
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 7. Build and push the Docker image
+      - name: Build and push Docker image
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./TemperatureSystem/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/temperature-system:latest, ${{ secrets.DOCKERHUB_USERNAME }}/temperature-system:${{ github.sha }}
+          platforms: linux/amd64, linux/arm64
