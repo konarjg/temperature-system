@@ -27,13 +27,13 @@ jobs:
       # 3. Run unit tests
       # This step runs on EVERY trigger (feature branch pushes and PRs to main)
       - name: Run unit tests
-        run: dotnet test UnitTests/UnitTests.csproj --verbosity normal
+        run: dotnet test TemperatureSystem.sln --filter "Category!=Integration" --verbosity normal
 
       # 4. Run integration tests
       # This step ONLY runs when the event is a pull request
       - name: Run integration tests
         if: github.event_name == 'pull_request'
-        run: dotnet test IntegrationTests/IntegrationTests.csproj --verbosity normal
+        run: dotnet test TemperatureSystem.sln --filter "Category=Integration" --verbosity normal
 
       # 5. Set up Docker Buildx
       # This and all subsequent steps ONLY run on pull requests to main
