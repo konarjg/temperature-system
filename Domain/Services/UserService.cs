@@ -10,6 +10,21 @@ public class UserService(IUserRepository userRepository, IUnitOfWork unitOfWork,
   public async Task<User?> GetByIdAsync(long id) {
     return await userRepository.GetByIdAsync(id);
   }
+  public async Task<User?> GetByCredentialsAsync(string email,
+    string password) {
+
+    if (!await userRepository.ExistsByEmailAsync(email)) {
+      return null;
+    }
+
+    User? user = await userRepository.GetByEmailAsync(email);
+
+    if (!passwordSecurity.Verify(password,user.PasswordHash)) {
+      return null;
+    }
+
+    return user;
+  }
 
   public async Task<User?> CreateAsync(User data) {
     if (await userRepository.ExistsByEmailAsync(data.Email)) {
