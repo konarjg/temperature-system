@@ -20,9 +20,6 @@ COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
 # Restore dependencies for the entire solution
 RUN dotnet restore "TemperatureSystem.sln"
 
-# --- INSTALL THE EF TOOL IN THE SDK STAGE ---
-RUN dotnet tool install --global dotnet-ef
-
 # Copy the rest of the source code
 COPY . .
 WORKDIR "/src"
@@ -42,25 +39,17 @@ ENV Jwt__Key=$JWT_SECRET_KEY
 ENV Email__SenderPassword=$EMAIL_SENDER_PASSWORD
 # -----------------------------
 
-# --- EF CORE MIGRATIONS SETUP ---
-# 1. Copy the pre-installed dotnet-ef tool from the build stage.
-COPY --from=build /root/.dotnet/tools /root/.dotnet/tools
-# 2. Add the tool's directory to the system's PATH environment variable.
-ENV PATH="${PATH}:/root/.dotnet/tools"
-# 3. Copy the entrypoint script into the container's working directory.
-COPY ["TemperatureSystem/setup.sh", "."]
-# 4. Make the script executable. This is a required step on Linux.
-RUN chmod +x ./setup.sh
-# --------------------------------
+# --- MIGRATIONS ARE NOW HANDLED BY THE APP ON STARTUP. NO SETUP NEEDED. ---
 
 # --- PERMISSIONS FIX FOR SQLITE DATABASE (QUICK METHOD) ---
 RUN chown -R app:app /app
 # --------------------------------------------------------
 
 # --- SECURITY BEST PRACTICE ---
+# The aspnet:9.0 image already includes the 'app' user.
 USER app
 # ----------------------------
 
 # --- EXECUTION ---
-ENTRYPOINT ["./setup.sh"]
-CMD ["dotnet", "TemperatureSystem.dll"]
+# We no longer need the entrypoint script.
+ENTRYPOINT ["dotnet", "TemperatureSystem.dll"]

@@ -4,6 +4,7 @@ using Domain;
 using Domain.Services.Util;
 using ExternalServiceAdapters;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using TemperatureSystem.Endpoints;
 using TemperatureSystem.HostedServices;
 
@@ -41,5 +42,17 @@ if (app.Environment.IsDevelopment()) {
 app.UseHttpsRedirection();
 app.MapMeasurementEndpoints();
 app.MapSensorEndpoints();
+
+using (IServiceScope scope = app.Services.CreateScope()) {
+  try {
+    DbContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
+    dbContext.Database.Migrate();
+  }
+  catch (Exception ex) {
+    ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "An error occurred while migrating the database.");
+    throw; 
+  }
+}
 
 app.Run();
