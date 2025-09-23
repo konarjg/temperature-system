@@ -3,5 +3,5 @@
 using Entities;
 
 public interface IEmailService {
-  bool SendEmail(string subject, string body, string to);
+  Task<bool> SendEmail(string subject, string body, string to);
 }
