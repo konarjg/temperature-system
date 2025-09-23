@@ -3,22 +3,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
-# --- THIS IS THE NEW, CRUCIAL SECTION FOR SECRETS ---
-# 1. Define build arguments that the 'docker build' command can pass in.
-#    These are temporary and only exist during the build.
-ARG JWT_SECRET_KEY
-ARG EMAIL_SENDER_PASSWORD
-
-# 2. Set permanent environment variables in the final image using the values from the ARGs.
-#    The double-underscore format allows ASP.NET Core to map them to nested JSON keys.
-ENV Jwt__Key=$JWT_SECRET_KEY
-ENV Email__SenderPassword=$EMAIL_SENDER_PASSWORD
-# ---------------------------------------------------
-
-# Create a non-root user for security
-RUN adduser -u 5678 --disabled-password --gecos "" app
-USER app
-
 # Stage 2: The Build Image - Contains the SDK to build the application
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
@@ -30,8 +14,7 @@ COPY ["TemperatureSystem/TemperatureSystem.csproj", "TemperatureSystem/"]
 COPY ["Domain/Domain.csproj", "Domain/"]
 COPY ["DatabaseAdapters/DatabaseAdapters.csproj", "DatabaseAdapters/"]
 COPY ["ExternalServiceAdapters/ExternalServiceAdapters.csproj", "ExternalServiceAdapters/"]
-# You should also add your other projects here for a complete restore
-COPY ["ExternalServiceAdapters/ExternalServiceAdapters.csproj", "ExternalServiceAdapters/"]
+# You had a duplicate copy here, I removed one. Add any other projects as needed.
 COPY ["UnitTests/UnitTests.csproj", "UnitTests/"]
 COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
 
@@ -49,4 +32,19 @@ RUN dotnet publish "TemperatureSystem.csproj" -c $BUILD_CONFIGURATION -o /app/pu
 FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+
+# --- THIS IS THE NEW, CRUCIAL SECTION FOR SECRETS ---
+# Pass build arguments into the final image's environment
+ARG JWT_SECRET_KEY
+ARG EMAIL_SENDER_PASSWORD
+ENV Jwt__Key=$JWT_SECRET_KEY
+ENV Email__SenderPassword=$EMAIL_SENDER_PASSWORD
+# ---------------------------------------------------
+
+# --- USER CREATION IS NOW HERE, AT THE END ---
+# Create a non-root user for security after all file operations are complete
+RUN adduser -u 5678 --disabled-password --gecos "" app
+USER app
+# ---------------------------------------------------
+
 ENTRYPOINT ["dotnet", "TemperatureSystem.dll"]
