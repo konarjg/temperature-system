@@ -39,9 +39,9 @@ ENV Jwt__Key=$JWT_SECRET_KEY
 ENV Email__SenderPassword=$EMAIL_SENDER_PASSWORD
 # ---------------------------------------------------
 
-# --- USER CREATION IS NOW HERE, AT THE END ---
-# Create a non-root user for security after all file operations are complete
-RUN groupadd -g 5678 app && useradd -u 5678 -g app -s /sbin/nologin app
+# --- NO USER CREATION NEEDED ---
+# The .NET 8/9 base images already include a non-root user named 'app'.
+# We just need to switch to it at the end.
 USER app
 # ---------------------------------------------------
 
