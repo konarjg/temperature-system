@@ -20,6 +20,9 @@ COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
 # Restore dependencies for the entire solution
 RUN dotnet restore "TemperatureSystem.sln"
 
+# --- INSTALL THE EF TOOL IN THE SDK STAGE ---
+RUN dotnet tool install --global dotnet-ef
+
 # Copy the rest of the source code
 COPY . .
 WORKDIR "/src"
@@ -40,11 +43,11 @@ ENV Email__SenderPassword=$EMAIL_SENDER_PASSWORD
 # -----------------------------
 
 # --- EF CORE MIGRATIONS SETUP ---
-# 1. Install the dotnet-ef tool globally in the container.
-RUN dotnet tool install --global dotnet-ef
+# 1. Copy the pre-installed dotnet-ef tool from the build stage.
+COPY --from=build /root/.dotnet/tools /root/.dotnet/tools
 # 2. Add the tool's directory to the system's PATH environment variable.
 ENV PATH="${PATH}:/root/.dotnet/tools"
-# 3. Copy the entrypoint script from its subfolder into the container's working directory.
+# 3. Copy the entrypoint script into the container's working directory.
 COPY ["TemperatureSystem/setup.sh", "."]
 # 4. Make the script executable. This is a required step on Linux.
 RUN chmod +x ./setup.sh
@@ -59,6 +62,5 @@ USER app
 # ----------------------------
 
 # --- EXECUTION ---
-# 1. The ENTRYPOINT is now our script.
 ENTRYPOINT ["./setup.sh"]
 CMD ["dotnet", "TemperatureSystem.dll"]
