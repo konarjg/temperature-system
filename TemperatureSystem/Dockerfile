@@ -3,6 +3,18 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
+# --- THIS IS THE NEW, CRUCIAL SECTION FOR SECRETS ---
+# 1. Define build arguments that the 'docker build' command can pass in.
+#    These are temporary and only exist during the build.
+ARG JWT_SECRET_KEY
+ARG EMAIL_SENDER_PASSWORD
+
+# 2. Set permanent environment variables in the final image using the values from the ARGs.
+#    The double-underscore format allows ASP.NET Core to map them to nested JSON keys.
+ENV Jwt__Key=$JWT_SECRET_KEY
+ENV Email__SenderPassword=$EMAIL_SENDER_PASSWORD
+# ---------------------------------------------------
+
 # Create a non-root user for security
 RUN adduser -u 5678 --disabled-password --gecos "" app
 USER app
@@ -13,10 +25,15 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 # Copy project and solution files first to leverage Docker layer caching
-COPY ["TemperatureSystem/TemperatureSystem.csproj", "TemperatureSystem/"]
 COPY ["TemperatureSystem.sln", "."]
-COPY ["TemperatureSystem.UnitTests/TemperatureSystem.UnitTests.csproj", "TemperatureSystem.UnitTests/"]
-COPY ["TemperatureSystem.IntegrationTests/TemperatureSystem.IntegrationTests.csproj", "TemperatureSystem.IntegrationTests/"]
+COPY ["TemperatureSystem/TemperatureSystem.csproj", "TemperatureSystem/"]
+COPY ["Domain/Domain.csproj", "Domain/"]
+COPY ["DatabaseAdapters/DatabaseAdapters.csproj", "DatabaseAdapters/"]
+COPY ["ExternalServiceAdapters/ExternalServiceAdapters.csproj", "ExternalServiceAdapters/"]
+# You should also add your other projects here for a complete restore
+COPY ["ExternalServiceAdapters/ExternalServiceAdapters.csproj", "ExternalServiceAdapters/"]
+COPY ["UnitTests/UnitTests.csproj", "UnitTests/"]
+COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
 
 # Restore dependencies for the entire solution
 RUN dotnet restore "TemperatureSystem.sln"
