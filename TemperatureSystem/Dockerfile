@@ -14,7 +14,6 @@ COPY ["TemperatureSystem/TemperatureSystem.csproj", "TemperatureSystem/"]
 COPY ["Domain/Domain.csproj", "Domain/"]
 COPY ["DatabaseAdapters/DatabaseAdapters.csproj", "DatabaseAdapters/"]
 COPY ["ExternalServiceAdapters/ExternalServiceAdapters.csproj", "ExternalServiceAdapters/"]
-# You had a duplicate copy here, I removed one. Add any other projects as needed.
 COPY ["UnitTests/UnitTests.csproj", "UnitTests/"]
 COPY ["IntegrationTests/IntegrationTests.csproj", "IntegrationTests/"]
 
@@ -34,7 +33,6 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 # --- THIS IS THE NEW, CRUCIAL SECTION FOR SECRETS ---
-# Pass build arguments into the final image's environment
 ARG JWT_SECRET_KEY
 ARG EMAIL_SENDER_PASSWORD
 ENV Jwt__Key=$JWT_SECRET_KEY
@@ -43,7 +41,7 @@ ENV Email__SenderPassword=$EMAIL_SENDER_PASSWORD
 
 # --- USER CREATION IS NOW HERE, AT THE END ---
 # Create a non-root user for security after all file operations are complete
-RUN adduser -u 5678 --disabled-password --gecos "" app
+RUN groupadd -g 5678 app && useradd -u 5678 -g app -s /sbin/nologin app
 USER app
 # ---------------------------------------------------
 
