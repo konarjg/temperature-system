@@ -33,8 +33,9 @@ builder.Services.AddHostedService<MeasurementScheduler>();
 builder.Services.AddHostedService<SensorSync>();
 
 var app = builder.Build();
+string? env = builder.Configuration["Environment"];
 
-if (app.Environment.IsDevelopment()) {
+if (env != null && env.Equals("Dev")) {
   app.UseSwagger();
   app.UseSwaggerUI();
 }
