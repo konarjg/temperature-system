@@ -48,7 +48,16 @@ public class MeasurementSchedulerTests
     {
         // Arrange
         var scheduler = new MeasurementScheduler(_scopeFactoryMock.Object, _configuration, _loggerMock.Object);
-        var measurements = new List<Measurement> { new() { TemperatureCelsius = 22.0f, SensorId = 1 } };
+        var measurements = new List<Measurement>
+        {
+            new()
+            {
+                TemperatureCelsius = 22.0f,
+                SensorId = 1,
+                Timestamp = DateTime.UtcNow,
+                Sensor = new Sensor { DisplayName = "Test Sensor", DeviceAddress = "test-addr" }
+            }
+        };
         _sensorReaderMock.Setup(r => r.ReadAsync()).ReturnsAsync(measurements);
         _measurementServiceMock.Setup(s => s.CreateRangeAsync(measurements)).ReturnsAsync(true);
 

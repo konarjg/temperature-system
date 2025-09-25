@@ -26,7 +26,7 @@ public class MeasurementMapperTests
         Assert.NotNull(dto);
         Assert.Equal(entity.Id, dto.Id);
         Assert.Equal(entity.TemperatureCelsius, dto.TemperatureCelsius);
-        Assert.Equal(entity.Timestamp, dto.Timestamp);
+        Assert.Equal(entity.Timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture), dto.Timestamp);
         Assert.Equal(entity.SensorId, dto.SensorId);
     }
 }

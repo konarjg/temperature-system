@@ -26,11 +26,11 @@ public class JwtTokenGeneratorTests
                 new KeyValuePair<string, string>("Jwt:AccessTokenExpirationMinutes", "15"),
                 new KeyValuePair<string, string>("Jwt:RefreshTokenExpirationDays", "7"),
                 new KeyValuePair<string, string>("Jwt:VerificationTokenExpirationDays", "1")
-            })
+            }!)
             .Build();
 
         _tokenGenerator = new JwtTokenGenerator(configuration);
-        _testUser = new User { Id = 1, Email = "test@example.com", Role = Role.Viewer };
+        _testUser = new User { Id = 1, Email = "test@example.com", Role = Role.Viewer, PasswordHash = "some_hash" };
     }
 
     [Fact]
@@ -43,7 +43,7 @@ public class JwtTokenGeneratorTests
 
         // Assert
         Assert.NotNull(token);
-        var userIdClaim = token.Claims.FirstOrDefault(c => c.Type == "nameid");
+        var userIdClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub);
         var userEmailClaim = token.Claims.FirstOrDefault(c => c.Type == "email");
         var userRoleClaim = token.Claims.FirstOrDefault(c => c.Type == "role");
 

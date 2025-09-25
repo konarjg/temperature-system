@@ -1,4 +1,5 @@
 ﻿using ExternalServiceAdapters.PasswordSecurity;
+using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace UnitTests;
@@ -9,7 +10,17 @@ public class Argon2PasswordSecurityTests
 
     public Argon2PasswordSecurityTests()
     {
-        _passwordSecurity = new Argon2PasswordSecurity();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new[]
+            {
+                new KeyValuePair<string, string>("Security:PasswordHashing:Argon2:DegreeOfParallelism", "1"),
+                new KeyValuePair<string, string>("Security:PasswordHashing:Argon2:MemorySizeKiB", "8192"),
+                new KeyValuePair<string, string>("Security:PasswordHashing:Argon2:Iterations", "1"),
+                new KeyValuePair<string, string>("Security:PasswordHashing:Argon2:SaltSizeInBytes", "16"),
+                new KeyValuePair<string, string>("Security:PasswordHashing:Argon2:HashSizeInBytes", "32"),
+            }!)
+            .Build();
+        _passwordSecurity = new Argon2PasswordSecurity(configuration);
     }
 
     [Fact]

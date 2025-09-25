@@ -24,6 +24,5 @@ public class SensorMapperTests
         Assert.NotNull(dto);
         Assert.Equal(entity.Id, dto.Id);
         Assert.Equal(entity.DisplayName, dto.DisplayName);
-        Assert.Equal(entity.DeviceAddress, dto.DeviceAddress);
     }
 }

@@ -27,7 +27,7 @@ public class SensorServiceTests
     public async Task SyncSensorsAsync_ShouldAddNewSensors_WhenNewDefinitionsAreProvided()
     {
         // Arrange
-        var definitions = new List<SensorDefinition> { new() { DisplayName = "New Sensor", Address = "new-address" } };
+        var definitions = new List<SensorDefinition> { new("New Sensor", "new-address") };
         _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Sensor>());
         _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
@@ -59,7 +59,7 @@ public class SensorServiceTests
     public async Task SyncSensorsAsync_ShouldUpdateExistingSensors_WhenDisplayNameChanges()
     {
         // Arrange
-        var definitions = new List<SensorDefinition> { new() { DisplayName = "Updated Sensor", Address = "existing-address" } };
+        var definitions = new List<SensorDefinition> { new("Updated Sensor", "existing-address") };
         var existingSensors = new List<Sensor> { new() { DisplayName = "Original Sensor", DeviceAddress = "existing-address" } };
         _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
         _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);

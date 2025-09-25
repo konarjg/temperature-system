@@ -22,7 +22,7 @@ public class SensorSyncTests
         _sensorServiceMock = new Mock<ISensorService>();
         _sensorDefinitions = new List<SensorDefinition>
         {
-            new() { Address = "addr1", DisplayName = "Sensor 1" }
+            new("Sensor 1", "addr1")
         };
 
         var serviceProviderMock = new Mock<IServiceProvider>();
