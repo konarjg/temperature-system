@@ -37,11 +37,13 @@ public abstract class BaseServiceTests : IDisposable {
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IVerificationTokenRepository, VerificationTokenRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<ISensorRepository, SensorRepository>();
 
         // Services
         services.AddScoped<IMeasurementService, MeasurementService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ISensorService, SensorService>();
 
         // Mocks for external dependencies that should not be part of integration tests
         services.AddSingleton(new Mock<IPasswordSecurity>().Object);
