@@ -26,7 +26,6 @@ builder.Services.AddSwaggerGen();
 List<SensorDefinition>? sensorDefinitions = builder.Configuration.GetSection("Sensors").Get<List<SensorDefinition>>();
 builder.Services.AddSingleton(sensorDefinitions ?? []);
 
-builder.Services.AddSqLiteDatabaseAdapter(builder.Configuration);
 builder.Services.AddDomain();
 builder.Services.AddExternalServices();
 builder.Services.AddHostedService<MeasurementScheduler>();
@@ -44,17 +43,6 @@ app.UseHttpsRedirection();
 app.MapMeasurementEndpoints();
 app.MapSensorEndpoints();
 
-using (IServiceScope scope = app.Services.CreateScope()) {
-  try {
-    DbContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
-    dbContext.Database.Migrate();
-  }
-  catch (Exception ex) {
-    ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "An error occurred while migrating the database.");
-    throw; 
-  }
-}
 
 app.Run();
 

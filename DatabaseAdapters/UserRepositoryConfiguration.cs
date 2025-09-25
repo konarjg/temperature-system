@@ -1,17 +1,18 @@
-﻿namespace DatabaseAdapters;
-
 using Domain.Entities;
-using Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Microsoft.Extensions.DependencyInjection;
-using Repositories;
-using Repositories.SqLite;
 
-public class UserConfiguration : IEntityTypeConfiguration<User> {
-
-  public void Configure(EntityTypeBuilder<User> builder) {
-    builder.ToTable("Users");
-    builder.HasKey(u => u.Id);
-  }
+namespace DatabaseAdapters
+{
+    public class UserRepositoryConfiguration : IEntityTypeConfiguration<User>
+    {
+        public void Configure(EntityTypeBuilder<User> builder)
+        {
+            builder.ToTable("Users");
+            builder.HasKey(u => u.Id);
+            builder.Property(u => u.Email).IsRequired();
+            builder.Property(u => u.PasswordHash).IsRequired();
+            builder.Property(u => u.Role).IsRequired();
+        }
+    }
 }

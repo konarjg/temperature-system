@@ -16,7 +16,12 @@ namespace IntegrationTests
             var response = await Client.GetAsync("/api/sensors");
 
             // Assert
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            if (response.StatusCode != HttpStatusCode.OK)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                Assert.True(false, $"Expected status code OK, but got {response.StatusCode}. Content: {content}");
+            }
+
             var sensors = await response.Content.ReadFromJsonAsync<List<SensorDto>>();
             Assert.NotNull(sensors);
             Assert.Empty(sensors);
