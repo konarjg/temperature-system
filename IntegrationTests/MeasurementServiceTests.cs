@@ -84,4 +84,41 @@ public class MeasurementServiceTests : BaseServiceTests {
         Assert.Equal(2, result.Count);
         Assert.All(result, m => Assert.Equal(targetSensorId, m.SensorId));
     }
+
+    [Fact]
+    public async Task GetAggregatedHistoryForSensorAsync_ShouldReturnCorrectlyAggregatedData()
+    {
+        // Arrange
+        long targetSensorId = 1;
+        var day1 = DateTime.UtcNow.AddDays(-2).Date;
+        var day2 = DateTime.UtcNow.AddDays(-1).Date;
+
+        await _measurementService.CreateRangeAsync(new List<Measurement>
+        {
+            // Day 1 data
+            new() { TemperatureCelsius = 10, Timestamp = day1.AddHours(1), SensorId = targetSensorId },
+            new() { TemperatureCelsius = 20, Timestamp = day1.AddHours(2), SensorId = targetSensorId },
+            // Day 2 data
+            new() { TemperatureCelsius = 30, Timestamp = day2.AddHours(1), SensorId = targetSensorId },
+            new() { TemperatureCelsius = 40, Timestamp = day2.AddHours(2), SensorId = targetSensorId },
+            // Data for another sensor (should be ignored)
+            new() { TemperatureCelsius = 100, Timestamp = day1.AddHours(1), SensorId = 2 }
+        });
+
+        // Act
+        var result = await _measurementService.GetAggregatedHistoryForSensorAsync(day1, day2.AddHours(23), Domain.Services.Util.MeasurementHistoryGranularity.Daily, targetSensorId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Count);
+
+        var day1Aggregate = result.SingleOrDefault(r => r.Date.Date == day1);
+        var day2Aggregate = result.SingleOrDefault(r => r.Date.Date == day2);
+
+        Assert.NotNull(day1Aggregate);
+        Assert.Equal(15, day1Aggregate.TemperatureCelsius); // Average of 10 and 20
+
+        Assert.NotNull(day2Aggregate);
+        Assert.Equal(35, day2Aggregate.TemperatureCelsius); // Average of 30 and 40
+    }
 }
