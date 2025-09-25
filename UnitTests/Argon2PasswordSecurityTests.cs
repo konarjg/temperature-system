@@ -10,7 +10,7 @@ public class Argon2PasswordSecurityTests
 
     public Argon2PasswordSecurityTests()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new[]
             {
                 new KeyValuePair<string, string>("Security:PasswordHashing:Argon2:DegreeOfParallelism", "1"),
@@ -27,10 +27,10 @@ public class Argon2PasswordSecurityTests
     public void Hash_ShouldReturnNonEmptyString()
     {
         // Arrange
-        var password = "mysecretpassword";
+        string password = "mysecretpassword";
 
         // Act
-        var hash = _passwordSecurity.Hash(password);
+        string hash = _passwordSecurity.Hash(password);
 
         // Assert
         Assert.False(string.IsNullOrEmpty(hash));
@@ -41,11 +41,11 @@ public class Argon2PasswordSecurityTests
     public void Verify_ShouldReturnTrue_ForCorrectPassword()
     {
         // Arrange
-        var password = "mysecretpassword";
-        var hash = _passwordSecurity.Hash(password);
+        string password = "mysecretpassword";
+        string hash = _passwordSecurity.Hash(password);
 
         // Act
-        var result = _passwordSecurity.Verify(password, hash);
+        bool result = _passwordSecurity.Verify(password, hash);
 
         // Assert
         Assert.True(result);
@@ -55,12 +55,12 @@ public class Argon2PasswordSecurityTests
     public void Verify_ShouldReturnFalse_ForIncorrectPassword()
     {
         // Arrange
-        var password = "mysecretpassword";
-        var incorrectPassword = "wrongpassword";
-        var hash = _passwordSecurity.Hash(password);
+        string password = "mysecretpassword";
+        string incorrectPassword = "wrongpassword";
+        string hash = _passwordSecurity.Hash(password);
 
         // Act
-        var result = _passwordSecurity.Verify(incorrectPassword, hash);
+        bool result = _passwordSecurity.Verify(incorrectPassword, hash);
 
         // Assert
         Assert.False(result);
@@ -70,11 +70,11 @@ public class Argon2PasswordSecurityTests
     public void Verify_ShouldReturnFalse_ForInvalidHash()
     {
         // Arrange
-        var password = "mysecretpassword";
-        var invalidHash = "invalidhash";
+        string password = "mysecretpassword";
+        string invalidHash = "invalidhash";
 
         // Act
-        var result = _passwordSecurity.Verify(password, invalidHash);
+        bool result = _passwordSecurity.Verify(password, invalidHash);
 
         // Assert
         Assert.False(result);

@@ -30,14 +30,14 @@ public class MeasurementSchedulerTests
         _loggerMock = new Mock<ILogger<MeasurementScheduler>>();
 
         _configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new[] { new KeyValuePair<string, string>("Measurement:Interval", "1") })
+            .AddInMemoryCollection(new[] { new KeyValuePair<string, string>("Measurement:Interval", "1") }!)
             .Build();
 
-        var serviceProviderMock = new Mock<IServiceProvider>();
+        Mock<IServiceProvider> serviceProviderMock = new();
         serviceProviderMock.Setup(sp => sp.GetService(typeof(ITemperatureSensorReader))).Returns(_sensorReaderMock.Object);
         serviceProviderMock.Setup(sp => sp.GetService(typeof(IMeasurementService))).Returns(_measurementServiceMock.Object);
 
-        var scopeMock = new Mock<IServiceScope>();
+        Mock<IServiceScope> scopeMock = new();
         scopeMock.Setup(s => s.ServiceProvider).Returns(serviceProviderMock.Object);
 
         _scopeFactoryMock.Setup(sf => sf.CreateScope()).Returns(scopeMock.Object);
@@ -47,8 +47,8 @@ public class MeasurementSchedulerTests
     public async Task ExecuteAsync_ShouldReadAndSaveMeasurements_WhenRunning()
     {
         // Arrange
-        var scheduler = new MeasurementScheduler(_scopeFactoryMock.Object, _configuration, _loggerMock.Object);
-        var measurements = new List<Measurement>
+        MeasurementScheduler scheduler = new(_scopeFactoryMock.Object, _configuration, _loggerMock.Object);
+        List<Measurement> measurements = new()
         {
             new()
             {
@@ -61,10 +61,10 @@ public class MeasurementSchedulerTests
         _sensorReaderMock.Setup(r => r.ReadAsync()).ReturnsAsync(measurements);
         _measurementServiceMock.Setup(s => s.CreateRangeAsync(measurements)).ReturnsAsync(true);
 
-        var cancellationTokenSource = new CancellationTokenSource();
+        CancellationTokenSource cancellationTokenSource = new();
 
         // Act
-        var executeTask = scheduler.StartAsync(cancellationTokenSource.Token);
+        Task executeTask = scheduler.StartAsync(cancellationTokenSource.Token);
         await Task.Delay(1500); // Allow the scheduler to run at least once
         cancellationTokenSource.Cancel();
         await executeTask;

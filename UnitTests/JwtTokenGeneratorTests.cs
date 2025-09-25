@@ -17,7 +17,7 @@ public class JwtTokenGeneratorTests
 
     public JwtTokenGeneratorTests()
     {
-        var configuration = new ConfigurationBuilder()
+        IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new[]
             {
                 new KeyValuePair<string, string>("Jwt:Key", "a-super-secret-key-that-is-long-enough"),
@@ -37,15 +37,15 @@ public class JwtTokenGeneratorTests
     public void GenerateAccessToken_ShouldContainCorrectClaims()
     {
         // Act
-        var tokenString = _tokenGenerator.GenerateAccessToken(_testUser);
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var token = tokenHandler.ReadJwtToken(tokenString);
+        string tokenString = _tokenGenerator.GenerateAccessToken(_testUser);
+        JwtSecurityTokenHandler tokenHandler = new();
+        JwtSecurityToken token = tokenHandler.ReadJwtToken(tokenString);
 
         // Assert
         Assert.NotNull(token);
-        var userIdClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub);
-        var userEmailClaim = token.Claims.FirstOrDefault(c => c.Type == "email");
-        var userRoleClaim = token.Claims.FirstOrDefault(c => c.Type == "role");
+        Claim? userIdClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub);
+        Claim? userEmailClaim = token.Claims.FirstOrDefault(c => c.Type == "email");
+        Claim? userRoleClaim = token.Claims.FirstOrDefault(c => c.Type == "role");
 
         Assert.Equal(_testUser.Id.ToString(), userIdClaim?.Value);
         Assert.Equal(_testUser.Email, userEmailClaim?.Value);
@@ -56,7 +56,7 @@ public class JwtTokenGeneratorTests
     public void GenerateRefreshToken_ShouldBeAssociatedWithUser()
     {
         // Act
-        var refreshToken = _tokenGenerator.GenerateRefreshToken(_testUser);
+        RefreshToken refreshToken = _tokenGenerator.GenerateRefreshToken(_testUser);
 
         // Assert
         Assert.NotNull(refreshToken);
@@ -69,7 +69,7 @@ public class JwtTokenGeneratorTests
     public void GenerateVerificationToken_ShouldBeAssociatedWithUser()
     {
         // Act
-        var verificationToken = _tokenGenerator.GenerateVerificationToken(_testUser);
+        VerificationToken verificationToken = _tokenGenerator.GenerateVerificationToken(_testUser);
 
         // Assert
         Assert.NotNull(verificationToken);

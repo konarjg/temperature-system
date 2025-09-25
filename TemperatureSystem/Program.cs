@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using TemperatureSystem.Endpoints;
 using TemperatureSystem.HostedServices;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -32,7 +32,7 @@ builder.Services.AddExternalServices();
 builder.Services.AddHostedService<MeasurementScheduler>();
 builder.Services.AddHostedService<SensorSync>();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 if (app.Environment.IsDevelopment()) {
   app.UseSwagger();
   app.UseSwaggerUI();

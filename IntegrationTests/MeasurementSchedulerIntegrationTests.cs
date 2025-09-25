@@ -22,12 +22,14 @@ using Xunit;
 
 namespace IntegrationTests;
 
-public class MeasurementSchedulerIntegrationTests() : IDisposable
+public class MeasurementSchedulerIntegrationTests : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
-    private readonly Mock<ITemperatureSensorReader> _sensorReaderMock = new();
+    private readonly Mock<ITemperatureSensorReader> _sensorReaderMock;
 
+    public MeasurementSchedulerIntegrationTests()
     {
+        _sensorReaderMock = new Mock<ITemperatureSensorReader>();
         string dbName = Guid.NewGuid().ToString();
         ServiceCollection services = new();
 

@@ -1,4 +1,5 @@
 ﻿using Domain.Entities;
+using TemperatureSystem.Dto;
 using TemperatureSystem.Mappers;
 using Xunit;
 
@@ -10,7 +11,7 @@ public class SensorMapperTests
     public void ToDto_ShouldMapEntityToDtoCorrectly()
     {
         // Arrange
-        var entity = new Sensor
+        Sensor entity = new()
         {
             Id = 1,
             DisplayName = "Living Room Sensor",
@@ -18,7 +19,7 @@ public class SensorMapperTests
         };
 
         // Act
-        var dto = SensorMapper.ToDto(entity);
+        SensorDto dto = SensorMapper.ToDto(entity);
 
         // Assert
         Assert.NotNull(dto);

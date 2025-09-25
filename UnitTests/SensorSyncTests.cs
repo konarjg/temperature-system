@@ -25,12 +25,12 @@ public class SensorSyncTests
             new("Sensor 1", "addr1")
         };
 
-        var serviceProviderMock = new Mock<IServiceProvider>();
+        Mock<IServiceProvider> serviceProviderMock = new();
         serviceProviderMock
             .Setup(sp => sp.GetService(typeof(ISensorService)))
             .Returns(_sensorServiceMock.Object);
 
-        var scopeMock = new Mock<IServiceScope>();
+        Mock<IServiceScope> scopeMock = new();
         scopeMock.Setup(s => s.ServiceProvider).Returns(serviceProviderMock.Object);
 
         _scopeFactoryMock.Setup(sf => sf.CreateScope()).Returns(scopeMock.Object);
@@ -40,8 +40,8 @@ public class SensorSyncTests
     public async Task StartAsync_ShouldCallSyncSensorsAsyncWithDefinitions()
     {
         // Arrange
-        var sensorSync = new SensorSync(_scopeFactoryMock.Object, _sensorDefinitions);
-        var cancellationToken = new CancellationToken();
+        SensorSync sensorSync = new(_scopeFactoryMock.Object, _sensorDefinitions);
+        CancellationToken cancellationToken = new();
 
         // Act
         await sensorSync.StartAsync(cancellationToken);

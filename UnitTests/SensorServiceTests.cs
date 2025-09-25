@@ -27,7 +27,7 @@ public class SensorServiceTests
     public async Task SyncSensorsAsync_ShouldAddNewSensors_WhenNewDefinitionsAreProvided()
     {
         // Arrange
-        var definitions = new List<SensorDefinition> { new("New Sensor", "new-address") };
+        List<SensorDefinition> definitions = new() { new("New Sensor", "new-address") };
         _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Sensor>());
         _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
@@ -43,7 +43,7 @@ public class SensorServiceTests
     public async Task SyncSensorsAsync_ShouldRemoveOrphanedSensors_WhenDefinitionsAreRemoved()
     {
         // Arrange
-        var existingSensors = new List<Sensor> { new() { DisplayName = "Old Sensor", DeviceAddress = "old-address" } };
+        List<Sensor> existingSensors = new() { new() { DisplayName = "Old Sensor", DeviceAddress = "old-address" } };
         _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
         _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
@@ -59,8 +59,8 @@ public class SensorServiceTests
     public async Task SyncSensorsAsync_ShouldUpdateExistingSensors_WhenDisplayNameChanges()
     {
         // Arrange
-        var definitions = new List<SensorDefinition> { new("Updated Sensor", "existing-address") };
-        var existingSensors = new List<Sensor> { new() { DisplayName = "Original Sensor", DeviceAddress = "existing-address" } };
+        List<SensorDefinition> definitions = new() { new("Updated Sensor", "existing-address") };
+        List<Sensor> existingSensors = new() { new() { DisplayName = "Original Sensor", DeviceAddress = "existing-address" } };
         _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
         _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
@@ -76,11 +76,11 @@ public class SensorServiceTests
     public async Task GetAllAsync_ShouldReturnAllSensorsFromRepository()
     {
         // Arrange
-        var expectedSensors = new List<Sensor> { new() { DisplayName = "Sensor 1", DeviceAddress = "address1" } };
+        List<Sensor> expectedSensors = new() { new() { DisplayName = "Sensor 1", DeviceAddress = "address1" } };
         _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(expectedSensors);
 
         // Act
-        var result = await _sensorService.GetAllAsync();
+        List<Sensor> result = await _sensorService.GetAllAsync();
 
         // Assert
         Assert.Single(result);

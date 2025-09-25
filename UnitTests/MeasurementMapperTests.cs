@@ -1,5 +1,6 @@
 ﻿using System;
 using Domain.Entities;
+using TemperatureSystem.Dto;
 using TemperatureSystem.Mappers;
 using Xunit;
 
@@ -11,7 +12,7 @@ public class MeasurementMapperTests
     public void ToDto_ShouldMapEntityToDtoCorrectly()
     {
         // Arrange
-        var entity = new Measurement
+        Measurement entity = new()
         {
             Id = 1,
             TemperatureCelsius = 25.5f,
@@ -20,7 +21,7 @@ public class MeasurementMapperTests
         };
 
         // Act
-        var dto = MeasurementMapper.ToDto(entity);
+        MeasurementDto dto = MeasurementMapper.ToDto(entity);
 
         // Assert
         Assert.NotNull(dto);
