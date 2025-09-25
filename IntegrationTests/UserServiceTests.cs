@@ -15,7 +15,7 @@ public class UserServiceTests : BaseServiceTests {
 
     public UserServiceTests() {
         _userService = ServiceProvider.GetRequiredService<IUserService>();
-        var passwordSecurityMock = Mock.Get(ServiceProvider.GetRequiredService<IPasswordSecurity>());
+        Mock<IPasswordSecurity> passwordSecurityMock = Mock.Get(ServiceProvider.GetRequiredService<IPasswordSecurity>());
 
         passwordSecurityMock.Setup(p => p.Hash(It.IsAny<string>())).Returns((string s) => "hashed_" + s);
         passwordSecurityMock.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string>()))
@@ -25,16 +25,16 @@ public class UserServiceTests : BaseServiceTests {
     [Fact]
     public async Task CreateAsync_ShouldAddUserToDatabase() {
         // Arrange
-        var user = new User { Email = "test@example.com", PasswordHash = "password", Role = Role.Unverified };
+        User user = new() { Email = "test@example.com", PasswordHash = "password", Role = Role.Unverified };
 
         // Act: Create the user. Note: In a real app, this would likely be part of a larger transaction.
-        var createdUser = await _userService.CreateAsync(user);
+        User? createdUser = await _userService.CreateAsync(user);
         // Manually commit the transaction for the purpose of this test.
         await DbContext.SaveChangesAsync();
 
         // Assert
         Assert.NotNull(createdUser);
-        var savedUser = await _userService.GetByIdAsync(createdUser.Id);
+        User? savedUser = await _userService.GetByIdAsync(createdUser.Id);
         Assert.NotNull(savedUser);
         Assert.Equal("test@example.com", savedUser.Email);
         Assert.Equal("hashed_password", savedUser.PasswordHash); // Verify password was hashed
@@ -43,12 +43,12 @@ public class UserServiceTests : BaseServiceTests {
     [Fact]
     public async Task GetByCredentialsAsync_ShouldReturnUser_WhenCredentialsAreCorrect() {
         // Arrange
-        var user = new User { Email = "correct@example.com", PasswordHash = "hashed_password", Role = Role.Viewer };
+        User user = new() { Email = "correct@example.com", PasswordHash = "hashed_password", Role = Role.Viewer };
         DbContext.Users.Add(user);
         await DbContext.SaveChangesAsync();
 
         // Act
-        var foundUser = await _userService.GetByCredentialsAsync("correct@example.com", "password");
+        User? foundUser = await _userService.GetByCredentialsAsync("correct@example.com", "password");
 
         // Assert
         Assert.NotNull(foundUser);
@@ -58,16 +58,16 @@ public class UserServiceTests : BaseServiceTests {
     [Fact]
     public async Task DeleteAsync_ShouldPerformSoftDelete() {
         // Arrange
-        var user = new User { Email = "delete@me.com", PasswordHash = "hashed_password", Role = Role.Viewer };
+        User user = new() { Email = "delete@me.com", PasswordHash = "hashed_password", Role = Role.Viewer };
         DbContext.Users.Add(user);
         await DbContext.SaveChangesAsync();
 
         // Act
-        var result = await _userService.DeleteAsync(user);
+        bool result = await _userService.DeleteAsync(user);
 
         // Assert
         Assert.True(result);
-        var savedUser = await DbContext.Users.AsNoTracking().SingleAsync(u => u.Id == user.Id);
+        User savedUser = await DbContext.Users.AsNoTracking().SingleAsync(u => u.Id == user.Id);
         Assert.NotNull(savedUser.Deleted);
     }
 }

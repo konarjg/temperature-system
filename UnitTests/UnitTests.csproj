@@ -21,6 +21,8 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Domain\Domain.csproj" />
+      <ProjectReference Include="..\ExternalServiceAdapters\ExternalServiceAdapters.csproj" />
+      <ProjectReference Include="..\TemperatureSystem\TemperatureSystem.csproj" />
     </ItemGroup>
 
 </Project>

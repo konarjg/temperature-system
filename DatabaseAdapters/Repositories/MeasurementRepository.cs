@@ -33,10 +33,13 @@ public class MeasurementRepository(IDatabaseContext databaseContext) : IMeasurem
     DateTime endDate,
     MeasurementHistoryGranularity granularity, long sensorId) {
 
-    return await GroupAndAggregate(databaseContext.Measurements.Where(m =>
-                   m.Timestamp >= startDate && m.Timestamp < endDate && m.SensorId == sensorId), granularity)
+    List<Measurement> measurements = await databaseContext.Measurements
+        .Where(m => m.Timestamp >= startDate && m.Timestamp < endDate && m.SensorId == sensorId)
+        .ToListAsync();
+
+    return GroupAndAggregate(measurements.AsQueryable(), granularity)
                  .OrderBy(a => a.TimeStamp)
-                 .ToListAsync();
+                 .ToList();
   }
 
   private IQueryable<AggregatedMeasurement> GroupAndAggregate(IQueryable<Measurement> query,
