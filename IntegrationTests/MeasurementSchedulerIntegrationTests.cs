@@ -22,25 +22,23 @@ using Xunit;
 
 namespace IntegrationTests;
 
-public class MeasurementSchedulerIntegrationTests : IDisposable
+public class MeasurementSchedulerIntegrationTests() : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
-    private readonly Mock<ITemperatureSensorReader> _sensorReaderMock;
-    private readonly string _dbName = Guid.NewGuid().ToString();
+    private readonly Mock<ITemperatureSensorReader> _sensorReaderMock = new();
 
-    public MeasurementSchedulerIntegrationTests()
     {
-        var services = new ServiceCollection();
-        _sensorReaderMock = new Mock<ITemperatureSensorReader>();
+        string dbName = Guid.NewGuid().ToString();
+        ServiceCollection services = new();
 
-        var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new[] { new KeyValuePair<string, string>("Measurement:Interval", "1") })
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new[] { new KeyValuePair<string, string>("Measurement:Interval", "1") }!)
             .Build();
 
-        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSingleton(configuration);
 
         services.AddDbContext<TestDatabaseContext>(options =>
-            options.UseInMemoryDatabase(databaseName: _dbName));
+            options.UseInMemoryDatabase(databaseName: dbName));
         services.AddScoped<DbContext>(provider => provider.GetRequiredService<TestDatabaseContext>());
         services.AddScoped<IDatabaseContext>(provider => provider.GetRequiredService<TestDatabaseContext>());
 
@@ -55,8 +53,8 @@ public class MeasurementSchedulerIntegrationTests : IDisposable
         _serviceProvider = services.BuildServiceProvider();
 
         // Seed the database
-        using var scope = _serviceProvider.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
+        using IServiceScope scope = _serviceProvider.CreateScope();
+        TestDatabaseContext dbContext = scope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
         dbContext.Sensors.Add(new Sensor { Id = 1, DisplayName = "Test Sensor 1", DeviceAddress = "test-addr-1" });
         dbContext.Sensors.Add(new Sensor { Id = 2, DisplayName = "Test Sensor 2", DeviceAddress = "test-addr-2" });
         dbContext.SaveChanges();
@@ -66,8 +64,8 @@ public class MeasurementSchedulerIntegrationTests : IDisposable
     public async Task MeasurementScheduler_ShouldReadFromSensorAndSaveToDatabase()
     {
         // Arrange
-        var scheduler = _serviceProvider.GetServices<IHostedService>().OfType<MeasurementScheduler>().Single();
-        var measurementsToRead = new List<Measurement>
+        IHostedService scheduler = _serviceProvider.GetServices<IHostedService>().OfType<MeasurementScheduler>().Single();
+        List<Measurement> measurementsToRead = new()
         {
             new() { TemperatureCelsius = 25.0f, SensorId = 1, Timestamp = DateTime.UtcNow },
             new() { TemperatureCelsius = 35.0f, SensorId = 2, Timestamp = DateTime.UtcNow }
@@ -80,9 +78,9 @@ public class MeasurementSchedulerIntegrationTests : IDisposable
         await scheduler.StopAsync(CancellationToken.None);
 
         // Assert
-        using var assertScope = _serviceProvider.CreateScope();
-        var dbContext = assertScope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
-        var savedMeasurements = await dbContext.Measurements.AsNoTracking().ToListAsync();
+        using IServiceScope assertScope = _serviceProvider.CreateScope();
+        TestDatabaseContext dbContext = assertScope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
+        List<Measurement> savedMeasurements = await dbContext.Measurements.AsNoTracking().ToListAsync();
 
         Assert.Equal(2, savedMeasurements.Count);
         Assert.Contains(savedMeasurements, m => m.TemperatureCelsius == 25.0f);
@@ -93,5 +91,6 @@ public class MeasurementSchedulerIntegrationTests : IDisposable
     public void Dispose()
     {
         _serviceProvider.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

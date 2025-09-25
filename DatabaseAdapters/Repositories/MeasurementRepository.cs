@@ -33,7 +33,7 @@ public class MeasurementRepository(IDatabaseContext databaseContext) : IMeasurem
     DateTime endDate,
     MeasurementHistoryGranularity granularity, long sensorId) {
 
-    var measurements = await databaseContext.Measurements
+    List<Measurement> measurements = await databaseContext.Measurements
         .Where(m => m.Timestamp >= startDate && m.Timestamp < endDate && m.SensorId == sensorId)
         .ToListAsync();
 
