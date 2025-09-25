@@ -42,45 +42,60 @@ namespace UnitTests
         }
 
         [Fact]
-        public async Task SyncSensorsAsync_ShouldAddUpdateAndRemoveSensors()
+        public async Task SyncSensorsAsync_ShouldAddNewSensors()
         {
             // Arrange
-            var definitions = new List<SensorDefinition>
-            {
-                new("Address 1", "New Sensor 1"),
-                new("Address 3", "Sensor 3")
-            };
-            var existingSensors = new List<Sensor>
-            {
-                new() { Id = 1, DisplayName = "Sensor 1", DeviceAddress = "Address 1" },
-                new() { Id = 2, DisplayName = "Sensor 2", DeviceAddress = "Address 2" }
-            };
-
-            List<Sensor> addedSensors = new();
-            List<Sensor> removedSensors = new();
-
+            var definitions = new List<SensorDefinition> { new("Sensor 3", "address-3") };
+            var existingSensors = new List<Sensor> { new() { DeviceAddress = "address-1", DisplayName = "Sensor 1" } };
+            var addedSensors = new List<Sensor>();
             _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
             _sensorRepositoryMock.Setup(r => r.AddRangeAsync(It.IsAny<List<Sensor>>()))
-                .Callback<List<Sensor>>(list => addedSensors.AddRange(list));
-            _sensorRepositoryMock.Setup(r => r.RemoveRange(It.IsAny<List<Sensor>>()))
-                .Callback<List<Sensor>>(list => removedSensors.AddRange(list));
-
-            _unitOfWorkMock.Setup(u => u.CompleteAsync()).ReturnsAsync(1);
+                .Callback<List<Sensor>>(s => addedSensors.AddRange(s));
 
             // Act
             await _sensorService.SyncSensorsAsync(definitions);
 
             // Assert
-            _sensorRepositoryMock.Verify(r => r.GetAllAsync(), Times.Once);
-
             Assert.Single(addedSensors);
-            Assert.Equal("Address 3", addedSensors[0].DeviceAddress);
+            Assert.Equal("address-3", addedSensors[0].DeviceAddress);
+            Assert.Equal("Sensor 3", addedSensors[0].DisplayName);
+        }
 
-            Assert.Single(removedSensors);
-            Assert.Equal("Address 2", removedSensors[0].DeviceAddress);
+        [Fact]
+        public async Task SyncSensorsAsync_ShouldUpdateExistingSensors()
+        {
+            // Arrange
+            var definitions = new List<SensorDefinition> { new("New Name", "address-1") };
+            var existingSensor = new Sensor { DeviceAddress = "address-1", DisplayName = "Old Name" };
+            var existingSensors = new List<Sensor> { existingSensor };
+            _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
 
-            Assert.Equal("New Sensor 1", existingSensors[0].DisplayName);
+            // Act
+            await _sensorService.SyncSensorsAsync(definitions);
+
+            // Assert
+            Assert.Equal("New Name", existingSensor.DisplayName);
             _unitOfWorkMock.Verify(u => u.CompleteAsync(), Times.Once);
+        }
+
+        [Fact]
+        public async Task SyncSensorsAsync_ShouldRemoveOrphanedSensors()
+        {
+            // Arrange
+            var definitions = new List<SensorDefinition> { new("Sensor 1", "address-1") };
+            var orphanedSensor = new Sensor { DeviceAddress = "address-2", DisplayName = "Sensor 2" };
+            var existingSensors = new List<Sensor> { new() { DeviceAddress = "address-1", DisplayName = "Sensor 1" }, orphanedSensor };
+            var removedSensors = new List<Sensor>();
+            _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
+            _sensorRepositoryMock.Setup(r => r.RemoveRange(It.IsAny<List<Sensor>>()))
+                .Callback<List<Sensor>>(s => removedSensors.AddRange(s));
+
+            // Act
+            await _sensorService.SyncSensorsAsync(definitions);
+
+            // Assert
+            Assert.Single(removedSensors);
+            Assert.Equal("address-2", removedSensors[0].DeviceAddress);
         }
     }
 }
