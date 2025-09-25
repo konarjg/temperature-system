@@ -24,10 +24,9 @@ namespace IntegrationTests;
 
 public class MeasurementSchedulerIntegrationTests : IDisposable
 {
-    private readonly IServiceScope _scope;
-    private readonly TestDatabaseContext _dbContext;
+    private readonly ServiceProvider _serviceProvider;
     private readonly Mock<ITemperatureSensorReader> _sensorReaderMock;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly string _dbName = Guid.NewGuid().ToString();
 
     public MeasurementSchedulerIntegrationTests()
     {
@@ -41,7 +40,7 @@ public class MeasurementSchedulerIntegrationTests : IDisposable
         services.AddSingleton<IConfiguration>(configuration);
 
         services.AddDbContext<TestDatabaseContext>(options =>
-            options.UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()));
+            options.UseInMemoryDatabase(databaseName: _dbName));
         services.AddScoped<DbContext>(provider => provider.GetRequiredService<TestDatabaseContext>());
         services.AddScoped<IDatabaseContext>(provider => provider.GetRequiredService<TestDatabaseContext>());
 
@@ -54,8 +53,13 @@ public class MeasurementSchedulerIntegrationTests : IDisposable
         services.AddHostedService<MeasurementScheduler>();
 
         _serviceProvider = services.BuildServiceProvider();
-        _scope = _serviceProvider.CreateScope();
-        _dbContext = _scope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
+
+        // Seed the database
+        using var scope = _serviceProvider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
+        dbContext.Sensors.Add(new Sensor { Id = 1, DisplayName = "Test Sensor 1", DeviceAddress = "test-addr-1" });
+        dbContext.Sensors.Add(new Sensor { Id = 2, DisplayName = "Test Sensor 2", DeviceAddress = "test-addr-2" });
+        dbContext.SaveChanges();
     }
 
     [Fact]
@@ -65,20 +69,21 @@ public class MeasurementSchedulerIntegrationTests : IDisposable
         var scheduler = _serviceProvider.GetServices<IHostedService>().OfType<MeasurementScheduler>().Single();
         var measurementsToRead = new List<Measurement>
         {
-            new() { TemperatureCelsius = 25.0f, SensorId = 1, Sensor = new Sensor() },
-            new() { TemperatureCelsius = 35.0f, SensorId = 2, Sensor = new Sensor() }
+            new() { TemperatureCelsius = 25.0f, SensorId = 1, Timestamp = DateTime.UtcNow },
+            new() { TemperatureCelsius = 35.0f, SensorId = 2, Timestamp = DateTime.UtcNow }
         };
         _sensorReaderMock.Setup(r => r.ReadAsync()).ReturnsAsync(measurementsToRead);
 
-        var cancellationTokenSource = new CancellationTokenSource();
-
         // Act
-        await scheduler.StartAsync(cancellationTokenSource.Token);
-        await Task.Delay(1500, cancellationTokenSource.Token); // Wait for the scheduler to run at least once
-        cancellationTokenSource.Cancel();
+        await scheduler.StartAsync(CancellationToken.None);
+        await Task.Delay(1500); // Wait for scheduler to run once (interval is 1s)
+        await scheduler.StopAsync(CancellationToken.None);
 
         // Assert
-        var savedMeasurements = await _dbContext.Measurements.AsNoTracking().ToListAsync();
+        using var assertScope = _serviceProvider.CreateScope();
+        var dbContext = assertScope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
+        var savedMeasurements = await dbContext.Measurements.AsNoTracking().ToListAsync();
+
         Assert.Equal(2, savedMeasurements.Count);
         Assert.Contains(savedMeasurements, m => m.TemperatureCelsius == 25.0f);
         Assert.Contains(savedMeasurements, m => m.TemperatureCelsius == 35.0f);
@@ -87,6 +92,6 @@ public class MeasurementSchedulerIntegrationTests : IDisposable
 
     public void Dispose()
     {
-        _scope.Dispose();
+        _serviceProvider.Dispose();
     }
 }

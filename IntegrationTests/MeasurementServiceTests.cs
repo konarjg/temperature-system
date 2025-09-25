@@ -112,13 +112,13 @@ public class MeasurementServiceTests : BaseServiceTests {
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
 
-        var day1Aggregate = result.SingleOrDefault(r => r.Date.Date == day1);
-        var day2Aggregate = result.SingleOrDefault(r => r.Date.Date == day2);
+        var day1Aggregate = result.SingleOrDefault(r => r.TimeStamp.Date == day1);
+        var day2Aggregate = result.SingleOrDefault(r => r.TimeStamp.Date == day2);
 
         Assert.NotNull(day1Aggregate);
-        Assert.Equal(15, day1Aggregate.TemperatureCelsius); // Average of 10 and 20
+        Assert.Equal(15, day1Aggregate.AverageTemperatureCelsius); // Average of 10 and 20
 
         Assert.NotNull(day2Aggregate);
-        Assert.Equal(35, day2Aggregate.TemperatureCelsius); // Average of 30 and 40
+        Assert.Equal(35, day2Aggregate.AverageTemperatureCelsius); // Average of 30 and 40
     }
 }

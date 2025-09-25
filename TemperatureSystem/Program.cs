@@ -33,9 +33,7 @@ builder.Services.AddHostedService<MeasurementScheduler>();
 builder.Services.AddHostedService<SensorSync>();
 
 var app = builder.Build();
-string? env = builder.Configuration["Environment"];
-
-if (env != null && env.Equals("Dev")) {
+if (app.Environment.IsDevelopment()) {
   app.UseSwagger();
   app.UseSwaggerUI();
 }
@@ -44,16 +42,21 @@ app.UseHttpsRedirection();
 app.MapMeasurementEndpoints();
 app.MapSensorEndpoints();
 
-using (IServiceScope scope = app.Services.CreateScope()) {
-  try {
-    DbContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
-    dbContext.Database.Migrate();
-  }
-  catch (Exception ex) {
-    ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "An error occurred while migrating the database.");
-    throw; 
-  }
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using (IServiceScope scope = app.Services.CreateScope()) {
+      try {
+        DbContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
+        dbContext.Database.Migrate();
+      }
+      catch (Exception ex) {
+        ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+        throw;
+      }
+    }
 }
 
 app.Run();
+
+public partial class Program { }

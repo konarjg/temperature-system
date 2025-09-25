@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
+using Domain.Records;
 using TemperatureSystem.Dto;
 using Xunit;
 
@@ -19,10 +20,10 @@ public class MeasurementEndpointsTests : IClassFixture<CustomWebApplicationFacto
     public async Task PostMeasurement_ShouldCreateNewMeasurement()
     {
         // Arrange
-        var newMeasurement = new CreateMeasurementDto(25.5f, 1);
+        var newMeasurement = new CreateMeasurementDto(DateTime.UtcNow.ToString("o"), 1, 25.5f);
 
         // Act
-        var response = await _client.PostAsJsonAsync("/measurements", newMeasurement);
+        var response = await _client.PostAsJsonAsync("/api/measurements/", newMeasurement);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -32,11 +33,11 @@ public class MeasurementEndpointsTests : IClassFixture<CustomWebApplicationFacto
     public async Task GetLatestMeasurement_ShouldReturnLatestMeasurementForSensor()
     {
         // Arrange
-        var newMeasurement = new CreateMeasurementDto(30.0f, 1);
-        await _client.PostAsJsonAsync("/measurements", newMeasurement);
+        var newMeasurement = new CreateMeasurementDto(DateTime.UtcNow.ToString("o"), 1, 30.0f);
+        await _client.PostAsJsonAsync("/api/measurements/", newMeasurement);
 
         // Act
-        var response = await _client.GetAsync("/measurements/latest/1");
+        var response = await _client.GetAsync("/api/measurements/latest?sensorId=1");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -53,8 +54,8 @@ public class MeasurementEndpointsTests : IClassFixture<CustomWebApplicationFacto
         // Arrange
         // Note: In a real scenario, we'd seed this data more robustly.
         // For this test, we'll assume sensor 1 exists from our factory setup.
-        await _client.PostAsJsonAsync("/measurements", new CreateMeasurementDto(10, 1));
-        await _client.PostAsJsonAsync("/measurements", new CreateMeasurementDto(20, 1));
+        await _client.PostAsJsonAsync("/api/measurements/", new CreateMeasurementDto(DateTime.UtcNow.AddHours(-1).ToString("o"), 1, 10));
+        await _client.PostAsJsonAsync("/api/measurements/", new CreateMeasurementDto(DateTime.UtcNow.ToString("o"), 1, 20));
 
         var startDate = DateTime.UtcNow.AddDays(-1).ToString("o");
         var endDate = DateTime.UtcNow.AddDays(1).ToString("o");
@@ -68,6 +69,6 @@ public class MeasurementEndpointsTests : IClassFixture<CustomWebApplicationFacto
 
         Assert.NotNull(aggregatedData);
         Assert.Single(aggregatedData);
-        Assert.Equal(15, aggregatedData[0].TemperatureCelsius, 1); // Allow for minor floating point differences
+        Assert.Equal(15, aggregatedData[0].AverageTemperatureCelsius, 1); // Allow for minor floating point differences
     }
 }

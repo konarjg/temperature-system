@@ -30,4 +30,8 @@
       <ProjectReference Include="..\ExternalServiceAdapters\ExternalServiceAdapters.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="EndToEndTests" />
+    </ItemGroup>
+
 </Project>

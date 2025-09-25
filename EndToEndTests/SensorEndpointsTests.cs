@@ -19,7 +19,7 @@ public class SensorEndpointsTests : IClassFixture<CustomWebApplicationFactory<Pr
     public async Task GetSensors_ShouldReturnListOfSensors()
     {
         // Act
-        var response = await _client.GetAsync("/sensors");
+        var response = await _client.GetAsync("/api/sensors");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -27,7 +27,7 @@ public class SensorEndpointsTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         Assert.NotNull(sensors);
         Assert.Equal(2, sensors.Count);
-        Assert.Contains(sensors, s => s.DeviceAddress == "test-sensor-1");
-        Assert.Contains(sensors, s => s.DeviceAddress == "test-sensor-2");
+        Assert.Contains(sensors, s => s.DisplayName == "Test Sensor 1");
+        Assert.Contains(sensors, s => s.DisplayName == "Test Sensor 2");
     }
 }

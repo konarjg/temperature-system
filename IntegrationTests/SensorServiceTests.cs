@@ -25,8 +25,8 @@ public class SensorServiceTests : BaseServiceTests
         // Arrange
         var definitions = new List<SensorDefinition>
         {
-            new() { DisplayName = "New Sensor 1", Address = "address1" },
-            new() { DisplayName = "New Sensor 2", Address = "address2" }
+            new("New Sensor 1", "address1"),
+            new("New Sensor 2", "address2")
         };
 
         // Act
@@ -53,7 +53,7 @@ public class SensorServiceTests : BaseServiceTests
 
         var definitions = new List<SensorDefinition>
         {
-            new() { DisplayName = "Keep Sensor", Address = "keep-address" }
+            new("Keep Sensor", "keep-address")
         };
 
         // Act
@@ -75,7 +75,7 @@ public class SensorServiceTests : BaseServiceTests
 
         var definitions = new List<SensorDefinition>
         {
-            new() { DisplayName = "New Name", Address = "update-address" }
+            new("New Name", "update-address")
         };
 
         // Act
