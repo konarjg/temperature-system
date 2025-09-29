@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Domain.Entities;
@@ -16,23 +17,25 @@ public class AuthServiceTests : BaseServiceTests {
     private readonly IAuthService _authService;
     private readonly Mock<ITokenGenerator> _tokenGeneratorMock;
     private readonly Mock<IEmailService> _emailServiceMock;
+    private readonly Mock<IPasswordSecurity> _passwordSecurityMock;
+    private readonly Mock<IEmailSettingsProvider> _emailSettingsProviderMock;
 
     public AuthServiceTests() {
         _authService = ServiceProvider.GetRequiredService<IAuthService>();
         _tokenGeneratorMock = Mock.Get(ServiceProvider.GetRequiredService<ITokenGenerator>());
         _emailServiceMock = Mock.Get(ServiceProvider.GetRequiredService<IEmailService>());
-        var passwordSecurityMock = Mock.Get(ServiceProvider.GetRequiredService<IPasswordSecurity>());
-        var emailSettingsProviderMock = Mock.Get(ServiceProvider.GetRequiredService<IEmailSettingsProvider>());
+        _passwordSecurityMock = Mock.Get(ServiceProvider.GetRequiredService<IPasswordSecurity>());
+        _emailSettingsProviderMock = Mock.Get(ServiceProvider.GetRequiredService<IEmailSettingsProvider>());
 
-        passwordSecurityMock.Setup(p => p.Hash(It.IsAny<string>())).Returns((string s) => "hashed_" + s);
-        passwordSecurityMock.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string>()))
+        _passwordSecurityMock.Setup(p => p.Hash(It.IsAny<string>())).Returns((string s) => "hashed_" + s);
+        _passwordSecurityMock.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string>()))
             .Returns((string pass, string hash) => hash == "hashed_" + pass);
-        emailSettingsProviderMock.Setup(p => p.VerificationUrl).Returns("http://verify.com");
+        _emailSettingsProviderMock.Setup(p => p.VerificationUrl).Returns("http://verify.com");
         _emailServiceMock.Setup(s => s.SendEmail(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
     }
 
     [Fact]
-    public async Task RegisterAsync_ShouldCreateUnverifiedUserAndToken() {
+    public async Task RegisterAsync_ShouldCreateUnverifiedUserAndSendVerificationEmail() {
         // Arrange
         _tokenGeneratorMock.Setup(g => g.GenerateVerificationToken(It.IsAny<User>()))
             .Returns((User u) => new VerificationToken { Token = "verify-123", Expires = DateTime.UtcNow.AddDays(1), User = u });
@@ -48,6 +51,13 @@ public class AuthServiceTests : BaseServiceTests {
         Assert.Equal(Role.Unverified, user.Role);
         var token = await DbContext.VerificationTokens.SingleOrDefaultAsync(t => t.User.Id == user.Id);
         Assert.NotNull(token);
+
+        // Verify email was sent with the correct link
+        _emailServiceMock.Verify(s => s.SendEmail(
+            "Verify your email",
+            It.Is<string>(body => body.Contains("http://verify.com?token=verify-123")),
+            "register@example.com"
+        ), Times.Once);
     }
 
     [Fact]
@@ -87,5 +97,10 @@ public class AuthServiceTests : BaseServiceTests {
         Assert.NotNull(result);
         Assert.Equal("access-token-1", result.AccessToken);
         Assert.Single(DbContext.RefreshTokens.Where(rt => rt.User.Id == user.Id));
+        
+        // Verify mocks were called
+        _passwordSecurityMock.Verify(p => p.Verify("password", "hashed_password"), Times.Once);
+        _tokenGeneratorMock.Verify(g => g.GenerateAccessToken(It.Is<User>(u => u.Id == user.Id)), Times.Once);
+        _tokenGeneratorMock.Verify(g => g.GenerateRefreshToken(It.Is<User>(u => u.Id == user.Id)), Times.Once);
     }
 }

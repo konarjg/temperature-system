@@ -39,17 +39,13 @@ ENV Jwt__Key=$JWT_SECRET_KEY
 ENV Email__SenderPassword=$EMAIL_SENDER_PASSWORD
 # -----------------------------
 
-# --- MIGRATIONS ARE NOW HANDLED BY THE APP ON STARTUP. NO SETUP NEEDED. ---
-
-# --- PERMISSIONS FIX FOR SQLITE DATABASE (QUICK METHOD) ---
+# --- PERMISSIONS FIX FOR SQLITE DATABASE ---
 RUN chown -R app:app /app
 # --------------------------------------------------------
 
 # --- SECURITY BEST PRACTICE ---
-# The aspnet:9.0 image already includes the 'app' user.
 USER app
 # ----------------------------
 
 # --- EXECUTION ---
-# We no longer need the entrypoint script.
 ENTRYPOINT ["dotnet", "TemperatureSystem.dll"]

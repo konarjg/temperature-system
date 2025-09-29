@@ -35,7 +35,7 @@ builder.Services.AddHostedService<SensorSync>();
 var app = builder.Build();
 string? env = builder.Configuration["Environment"];
 
-if (env != null && env.Equals("Dev")) {
+if (env is "Dev") {
   app.UseSwagger();
   app.UseSwaggerUI();
 }

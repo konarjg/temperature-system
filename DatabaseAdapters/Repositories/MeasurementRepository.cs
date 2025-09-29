@@ -26,47 +26,53 @@ public class MeasurementRepository(IDatabaseContext databaseContext) : IMeasurem
   public async Task<List<Measurement>> GetHistoryForSensorAsync(DateTime startDate,
     DateTime endDate, long sensorId) {
 
-    return await databaseContext.Measurements.Where(m => m.Timestamp >= startDate && m.Timestamp < endDate && m.SensorId == sensorId).ToListAsync();
+    return await databaseContext.Measurements.Where(m => m.Timestamp >= startDate && m.Timestamp < endDate && m.SensorId == sensorId).OrderByDescending(m => m.Timestamp).ToListAsync();
   }
 
   public async Task<List<AggregatedMeasurement>> GetAggregatedHistoryForSensorAsync(DateTime startDate,
     DateTime endDate,
     MeasurementHistoryGranularity granularity, long sensorId) {
+    IQueryable<Measurement> query = databaseContext.Measurements.Where(m =>
+        m.Timestamp >= startDate && m.Timestamp < endDate && m.SensorId == sensorId);
 
-    return await GroupAndAggregate(databaseContext.Measurements.Where(m =>
-                   m.Timestamp >= startDate && m.Timestamp < endDate && m.SensorId == sensorId), granularity)
-                 .OrderBy(a => a.TimeStamp)
-                 .ToListAsync();
-  }
+    List<AggregatedMeasurement> aggregatedResult = await GroupAndAggregateAsync(query, granularity);
 
-  private IQueryable<AggregatedMeasurement> GroupAndAggregate(IQueryable<Measurement> query,
+    return aggregatedResult
+        .OrderByDescending(a => a.TimeStamp)
+        .ToList();
+}
+
+private async Task<List<AggregatedMeasurement>> GroupAndAggregateAsync(IQueryable<Measurement> query,
     MeasurementHistoryGranularity granularity) {
-
     switch (granularity) {
-      case MeasurementHistoryGranularity.Hourly:
-        return query.GroupBy(m => 
-          new DateTime(m.Timestamp.Year,m.Timestamp.Month,m.Timestamp.Day,m.Timestamp.Hour,0,0))
-                    .Select(g => 
-                      new AggregatedMeasurement(g.Key,g.Average(m => 
-                        m.TemperatureCelsius)));
-      
-      case MeasurementHistoryGranularity.Daily:
-        return query.GroupBy(m => 
-                     m.Timestamp.Date)
-                    .Select(g => 
-                      new AggregatedMeasurement(g.Key,g.Average(m => 
-                        m.TemperatureCelsius)));
-      
-      case MeasurementHistoryGranularity.Monthly:
-        return query.GroupBy(m => 
-                      new DateTime(m.Timestamp.Year,m.Timestamp.Month,1))
-                    .Select(g => 
-                      new AggregatedMeasurement(g.Key,g.Average(m => 
-                        m.TemperatureCelsius)));
-    }
+        case MeasurementHistoryGranularity.Hourly:
+            return await query
+                .GroupBy(m => new { m.Timestamp.Year, m.Timestamp.Month, m.Timestamp.Day, m.Timestamp.Hour })
+                .Select(g => new AggregatedMeasurement(
+                    new DateTime(g.Key.Year, g.Key.Month, g.Key.Day, g.Key.Hour, 0, 0),
+                    g.Average(m => m.TemperatureCelsius)
+                )).ToListAsync();
 
-    throw new InvalidEnumArgumentException();
-  }
+        case MeasurementHistoryGranularity.Daily:
+            return await query
+                .GroupBy(m => new { m.Timestamp.Year, m.Timestamp.Month, m.Timestamp.Day })
+                .Select(g => new AggregatedMeasurement(
+                    new DateTime(g.Key.Year, g.Key.Month, g.Key.Day),
+                    g.Average(m => m.TemperatureCelsius)
+                )).ToListAsync();
+
+        case MeasurementHistoryGranularity.Monthly:
+            return await query
+                .GroupBy(m => new { m.Timestamp.Year, m.Timestamp.Month })
+                .Select(g => new AggregatedMeasurement(
+                    new DateTime(g.Key.Year, g.Key.Month, 1),
+                    g.Average(m => m.TemperatureCelsius)
+                )).ToListAsync();
+
+        default:
+            throw new ArgumentOutOfRangeException(nameof(granularity));
+    }
+}
   
   public async Task AddAsync(Measurement measurement) {
     await databaseContext.Measurements.AddAsync(measurement);

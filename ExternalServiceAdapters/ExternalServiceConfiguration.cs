@@ -14,7 +14,7 @@ public static class ExternalServiceConfiguration {
     services.AddScoped<IEmailSettingsProvider,ConfigurationEmailSettingsProvider>();
     services.AddScoped<IPasswordSecurity,Argon2PasswordSecurity>();
     services.AddScoped<ITokenGenerator,JwtTokenGenerator>();
-    services.AddScoped<ITemperatureSensorReader,Ds18B20TemperatureSensorReader>();
+    services.AddScoped<ITemperatureSensorReader,FakeTemperatureSensorReader>();
     
     return services;
   }

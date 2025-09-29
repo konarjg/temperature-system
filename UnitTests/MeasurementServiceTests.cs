@@ -23,6 +23,23 @@ public class MeasurementServiceTests {
     }
 
     [Fact]
+    public async Task GetByIdAsync_ShouldCallRepositoryWithCorrectId()
+    {
+        // Arrange
+        long measurementId = 1;
+        var expectedMeasurement = new Measurement { Id = measurementId, TemperatureCelsius = 25, Timestamp = DateTime.UtcNow, SensorId = 123 };
+        _measurementRepositoryMock.Setup(r => r.GetByIdAsync(measurementId)).ReturnsAsync(expectedMeasurement);
+
+        // Act
+        var result = await _measurementService.GetByIdAsync(measurementId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(measurementId, result.Id);
+        _measurementRepositoryMock.Verify(r => r.GetByIdAsync(measurementId), Times.Once);
+    }
+
+    [Fact]
     public async Task GetLatestAsync_ShouldCallRepositoryWithCorrectSensorId() {
         // Arrange
         long sensorId = 123;
@@ -39,12 +56,39 @@ public class MeasurementServiceTests {
     }
 
     [Fact]
+    public async Task GetHistoryAsync_ShouldCallRepositoryWithCorrectParameters()
+    {
+        // Arrange
+        var startDate = DateTime.UtcNow.AddDays(-1);
+        var endDate = DateTime.UtcNow;
+        var expectedHistory = new List<Measurement> { new Measurement {
+                SensorId = 123,
+                Timestamp = default,
+                TemperatureCelsius = 0
+            }
+        };
+        _measurementRepositoryMock.Setup(r => r.GetHistoryAsync(startDate, endDate)).ReturnsAsync(expectedHistory);
+
+        // Act
+        var result = await _measurementService.GetHistoryAsync(startDate, endDate);
+
+        // Assert
+        Assert.Single(result);
+        _measurementRepositoryMock.Verify(r => r.GetHistoryAsync(startDate, endDate), Times.Once);
+    }
+
+    [Fact]
     public async Task GetHistoryForSensorAsync_ShouldCallRepositoryWithCorrectParameters() {
         // Arrange
         long sensorId = 456;
         var startDate = DateTime.UtcNow.AddDays(-1);
         var endDate = DateTime.UtcNow;
-        var expectedHistory = new List<Measurement> { new Measurement { TemperatureCelsius = 25f, Timestamp = DateTime.Now, SensorId = sensorId } };
+        var expectedHistory = new List<Measurement> { new Measurement {
+                SensorId = sensorId,
+                Timestamp = default,
+                TemperatureCelsius = 0
+            }
+        };
         _measurementRepositoryMock.Setup(r => r.GetHistoryForSensorAsync(startDate, endDate, sensorId)).ReturnsAsync(expectedHistory);
 
         // Act
@@ -75,12 +119,30 @@ public class MeasurementServiceTests {
     }
 
     [Fact]
+    public async Task CreateAsync_ShouldCallRepositoryAndUnitOfWork()
+    {
+        // Arrange
+        var measurement = new Measurement { TemperatureCelsius = 20, Timestamp = DateTime.UtcNow, SensorId = 1 };
+        _measurementRepositoryMock.Setup(r => r.AddAsync(measurement)).Returns(Task.CompletedTask);
+        _unitOfWorkMock.Setup(u => u.CompleteAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _measurementService.CreateAsync(measurement);
+
+        // Assert
+        Assert.True(result);
+        _measurementRepositoryMock.Verify(r => r.AddAsync(measurement), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CompleteAsync(), Times.Once);
+    }
+
+    [Fact]
     public async Task CreateRangeAsync_ShouldCallRepositoryAndUnitOfWork() {
         // Arrange
         var measurements = new List<Measurement> {
             new Measurement { TemperatureCelsius = 20, Timestamp = DateTime.UtcNow, SensorId = 1 },
             new Measurement { TemperatureCelsius = 21, Timestamp = DateTime.UtcNow, SensorId = 2 }
         };
+        _measurementRepositoryMock.Setup(r => r.AddRangeAsync(measurements)).Returns(Task.CompletedTask);
         _unitOfWorkMock.Setup(u => u.CompleteAsync()).ReturnsAsync(2);
 
         // Act
@@ -90,5 +152,46 @@ public class MeasurementServiceTests {
         Assert.True(result);
         _measurementRepositoryMock.Verify(r => r.AddRangeAsync(measurements), Times.Once);
         _unitOfWorkMock.Verify(u => u.CompleteAsync(), Times.Once);
+    }
+    
+    [Fact]
+    public async Task DeleteByIdAsync_WhenMeasurementExists_ShouldRemoveAndSaveChangesAndReturnTrue()
+    {
+        // Arrange
+        long measurementId = 1;
+        var measurement = new Measurement {
+            Id = measurementId,
+            Timestamp = default,
+            TemperatureCelsius = 0,
+            SensorId = 0
+        };
+        _measurementRepositoryMock.Setup(r => r.GetByIdAsync(measurementId)).ReturnsAsync(measurement);
+        _unitOfWorkMock.Setup(u => u.CompleteAsync()).ReturnsAsync(1);
+
+        // Act
+        var result = await _measurementService.DeleteByIdAsync(measurementId);
+
+        // Assert
+        Assert.True(result);
+        _measurementRepositoryMock.Verify(r => r.GetByIdAsync(measurementId), Times.Once);
+        _measurementRepositoryMock.Verify(r => r.Remove(measurement), Times.Once);
+        _unitOfWorkMock.Verify(u => u.CompleteAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteByIdAsync_WhenMeasurementDoesNotExist_ShouldReturnFalse()
+    {
+        // Arrange
+        long measurementId = 1;
+        _measurementRepositoryMock.Setup(r => r.GetByIdAsync(measurementId)).ReturnsAsync((Measurement)null);
+
+        // Act
+        var result = await _measurementService.DeleteByIdAsync(measurementId);
+
+        // Assert
+        Assert.False(result);
+        _measurementRepositoryMock.Verify(r => r.GetByIdAsync(measurementId), Times.Once);
+        _measurementRepositoryMock.Verify(r => r.Remove(It.IsAny<Measurement>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.CompleteAsync(), Times.Never);
     }
 }
