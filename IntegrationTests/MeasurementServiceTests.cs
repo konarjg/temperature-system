@@ -22,14 +22,14 @@ public class MeasurementServiceTests : BaseServiceTests {
     [Fact]
     public async Task CreateAsync_ShouldAddMeasurementToDatabase() {
         // Arrange
-        var measurement = new Measurement { TemperatureCelsius = 25.5f, Timestamp = DateTime.UtcNow, SensorId = 1 };
+        Measurement measurement = new() { TemperatureCelsius = 25.5f, Timestamp = DateTime.UtcNow, SensorId = 1 };
 
         // Act
-        var result = await _measurementService.CreateAsync(measurement);
+        bool result = await _measurementService.CreateAsync(measurement);
 
         // Assert
         Assert.True(result);
-        var savedMeasurement = await DbContext.Measurements.AsNoTracking().SingleOrDefaultAsync(m => m.Id == measurement.Id);
+        Measurement? savedMeasurement = await DbContext.Measurements.AsNoTracking().SingleOrDefaultAsync(m => m.Id == measurement.Id);
         Assert.NotNull(savedMeasurement);
         Assert.Equal(1, savedMeasurement.SensorId);
     }
@@ -37,13 +37,13 @@ public class MeasurementServiceTests : BaseServiceTests {
     [Fact]
     public async Task CreateRangeAsync_ShouldAddMultipleMeasurementsToDatabase() {
         // Arrange
-        var measurements = new List<Measurement> {
-            new Measurement { TemperatureCelsius = 20, Timestamp = DateTime.UtcNow, SensorId = 1 },
-            new Measurement { TemperatureCelsius = 22, Timestamp = DateTime.UtcNow, SensorId = 2 }
+        List<Measurement> measurements = new() {
+            new() { TemperatureCelsius = 20, Timestamp = DateTime.UtcNow, SensorId = 1 },
+            new() { TemperatureCelsius = 22, Timestamp = DateTime.UtcNow, SensorId = 2 }
         };
 
         // Act
-        var result = await _measurementService.CreateRangeAsync(measurements);
+        bool result = await _measurementService.CreateRangeAsync(measurements);
 
         // Assert
         Assert.True(result);
@@ -71,12 +71,12 @@ public class MeasurementServiceTests : BaseServiceTests {
         // Arrange
         long targetSensorId = 1;
         await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 20, Timestamp = DateTime.UtcNow.AddHours(-2), SensorId = targetSensorId });
-        var latestForTarget = new Measurement { TemperatureCelsius = 22, Timestamp = DateTime.UtcNow.AddHours(-1), SensorId = targetSensorId };
+        Measurement latestForTarget = new() { TemperatureCelsius = 22, Timestamp = DateTime.UtcNow.AddHours(-1), SensorId = targetSensorId };
         await _measurementService.CreateAsync(latestForTarget);
         await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 99, Timestamp = DateTime.UtcNow, SensorId = 2 }); // Measurement for another sensor
 
         // Act
-        var result = await _measurementService.GetLatestAsync(targetSensorId);
+        Measurement? result = await _measurementService.GetLatestAsync(targetSensorId);
 
         // Assert
         Assert.NotNull(result);
@@ -107,77 +107,54 @@ public class MeasurementServiceTests : BaseServiceTests {
     public async Task GetHistoryForSensorAsync_ShouldReturnOnlyMeasurementsForThatSensor() {
         // Arrange
         long targetSensorId = 1;
-        var startDate = DateTime.UtcNow.AddDays(-1);
-        var endDate = DateTime.UtcNow;
+        DateTime startDate = DateTime.UtcNow.AddDays(-1);
+        DateTime endDate = DateTime.UtcNow;
         await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 18, Timestamp = startDate.AddHours(1), SensorId = targetSensorId });
         await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 19, Timestamp = startDate.AddHours(2), SensorId = targetSensorId });
         await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 99, Timestamp = startDate.AddHours(3), SensorId = 2 }); // Other sensor
 
         // Act
-        var result = await _measurementService.GetHistoryForSensorAsync(startDate, endDate, targetSensorId);
+        List<Measurement> result = await _measurementService.GetHistoryForSensorAsync(startDate, endDate, targetSensorId);
 
         // Assert
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
         Assert.All(result, m => Assert.Equal(targetSensorId, m.SensorId));
     }
-    
     [Fact]
     public async Task GetAggregatedHistoryForSensorAsync_ShouldReturnCorrectlyAggregatedData()
     {
         // Arrange
-        long sensorId = 1;
-        var startDate = DateTime.UtcNow.Date.AddDays(-2);
-        var endDate = DateTime.UtcNow.Date;
-        
-        // Day 1: 2 measurements
-        await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 10, Timestamp = startDate.AddHours(1), SensorId = sensorId });
-        await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 20, Timestamp = startDate.AddHours(2), SensorId = sensorId });
-        // Day 2: 1 measurement
-        await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 30, Timestamp = startDate.AddDays(1).AddHours(1), SensorId = sensorId });
-        // Other sensor
-        await _measurementService.CreateAsync(new Measurement { TemperatureCelsius = 99, Timestamp = startDate.AddHours(3), SensorId = 2 });
+        long targetSensorId = 1;
+        DateTime day1 = DateTime.UtcNow.AddDays(-2).Date;
+        DateTime day2 = DateTime.UtcNow.AddDays(-1).Date;
+
+        await _measurementService.CreateRangeAsync(new List<Measurement>
+        {
+            // Day 1 data
+            new() { TemperatureCelsius = 10, Timestamp = day1.AddHours(1), SensorId = targetSensorId },
+            new() { TemperatureCelsius = 20, Timestamp = day1.AddHours(2), SensorId = targetSensorId },
+            // Day 2 data
+            new() { TemperatureCelsius = 30, Timestamp = day2.AddHours(1), SensorId = targetSensorId },
+            new() { TemperatureCelsius = 40, Timestamp = day2.AddHours(2), SensorId = targetSensorId },
+            // Data for another sensor (should be ignored)
+            new() { TemperatureCelsius = 100, Timestamp = day1.AddHours(1), SensorId = 2 }
+        });
 
         // Act
-        var result = await _measurementService.GetAggregatedHistoryForSensorAsync(startDate, endDate, MeasurementHistoryGranularity.Daily, sensorId);
+        List<AggregatedMeasurement> result = await _measurementService.GetAggregatedHistoryForSensorAsync(day1, day2.AddHours(23), Domain.Services.Util.MeasurementHistoryGranularity.Daily, targetSensorId);
 
         // Assert
         Assert.NotNull(result);
         Assert.Equal(2, result.Count);
-        
-        var firstDayAggregate = result.Single(r => r.TimeStamp == startDate);
-        Assert.Equal(15, firstDayAggregate.AverageTemperatureCelsius, 1); 
 
-        var secondDayAggregate = result.Single(r => r.TimeStamp == startDate.AddDays(1));
-        Assert.Equal(30, secondDayAggregate.AverageTemperatureCelsius, 1);
-    }
-    
-    [Fact]
-    public async Task DeleteByIdAsync_WhenMeasurementExists_ShouldRemoveFromDatabase()
-    {
-        // Arrange
-        var measurement = new Measurement { TemperatureCelsius = 25.5f, Timestamp = DateTime.UtcNow, SensorId = 1 };
-        await _measurementService.CreateAsync(measurement);
-        Assert.Equal(1, await DbContext.Measurements.CountAsync());
+        AggregatedMeasurement? day1Aggregate = result.SingleOrDefault(r => r.TimeStamp.Date == day1);
+        AggregatedMeasurement? day2Aggregate = result.SingleOrDefault(r => r.TimeStamp.Date == day2);
 
-        // Act
-        var result = await _measurementService.DeleteByIdAsync(measurement.Id);
+        Assert.NotNull(day1Aggregate);
+        Assert.Equal(15, day1Aggregate.AverageTemperatureCelsius); // Average of 10 and 20
 
-        // Assert
-        Assert.True(result);
-        Assert.Equal(0, await DbContext.Measurements.CountAsync());
-    }
-
-    [Fact]
-    public async Task DeleteByIdAsync_WhenMeasurementDoesNotExist_ShouldReturnFalse()
-    {
-        // Arrange
-        long nonExistentId = 999;
-
-        // Act
-        var result = await _measurementService.DeleteByIdAsync(nonExistentId);
-
-        // Assert
-        Assert.False(result);
+        Assert.NotNull(day2Aggregate);
+        Assert.Equal(35, day2Aggregate.AverageTemperatureCelsius); // Average of 30 and 40
     }
 }

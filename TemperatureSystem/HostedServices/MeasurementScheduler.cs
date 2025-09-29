@@ -25,7 +25,7 @@ public class MeasurementScheduler(IServiceScopeFactory scopeFactory, IConfigurat
     List<Measurement> measurements = await reader.ReadAsync();
 
     foreach (Measurement measurement in measurements) {
-      logger.LogInformation($"Temperature read from sensor {measurement.Sensor.DisplayName}: {measurement.TemperatureCelsius} C");
+      logger.LogInformation($"Temperature read from sensor {measurement.SensorId}: {measurement.TemperatureCelsius} C");
     }
     
     return await measurementService.CreateRangeAsync(measurements);

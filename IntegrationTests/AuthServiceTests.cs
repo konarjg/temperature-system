@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Domain.Entities;
 using Domain.Entities.Util;
+using Domain.Records;
 using Domain.Services.External;
 using Domain.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -24,8 +25,13 @@ public class AuthServiceTests : BaseServiceTests {
         _authService = ServiceProvider.GetRequiredService<IAuthService>();
         _tokenGeneratorMock = Mock.Get(ServiceProvider.GetRequiredService<ITokenGenerator>());
         _emailServiceMock = Mock.Get(ServiceProvider.GetRequiredService<IEmailService>());
+<<<<<<< HEAD
         _passwordSecurityMock = Mock.Get(ServiceProvider.GetRequiredService<IPasswordSecurity>());
         _emailSettingsProviderMock = Mock.Get(ServiceProvider.GetRequiredService<IEmailSettingsProvider>());
+=======
+        Mock<IPasswordSecurity> passwordSecurityMock = Mock.Get(ServiceProvider.GetRequiredService<IPasswordSecurity>());
+        Mock<IEmailSettingsProvider> emailSettingsProviderMock = Mock.Get(ServiceProvider.GetRequiredService<IEmailSettingsProvider>());
+>>>>>>> 0468ab6 (refactor: Address all PR feedback and use explicit typing)
 
         _passwordSecurityMock.Setup(p => p.Hash(It.IsAny<string>())).Returns((string s) => "hashed_" + s);
         _passwordSecurityMock.Setup(p => p.Verify(It.IsAny<string>(), It.IsAny<string>()))
@@ -41,15 +47,15 @@ public class AuthServiceTests : BaseServiceTests {
             .Returns((User u) => new VerificationToken { Token = "verify-123", Expires = DateTime.UtcNow.AddDays(1), User = u });
 
         // Act
-        var userToRegister = new User { Email = "register@example.com", PasswordHash = "password", Role = Role.Unverified };
-        var result = await _authService.RegisterAsync(userToRegister);
+        User userToRegister = new() { Email = "register@example.com", PasswordHash = "password", Role = Role.Unverified };
+        bool result = await _authService.RegisterAsync(userToRegister);
 
         // Assert
         Assert.True(result);
-        var user = await DbContext.Users.SingleOrDefaultAsync(u => u.Email == "register@example.com");
+        User? user = await DbContext.Users.SingleOrDefaultAsync(u => u.Email == "register@example.com");
         Assert.NotNull(user);
         Assert.Equal(Role.Unverified, user.Role);
-        var token = await DbContext.VerificationTokens.SingleOrDefaultAsync(t => t.User.Id == user.Id);
+        VerificationToken? token = await DbContext.VerificationTokens.SingleOrDefaultAsync(t => t.User.Id == user.Id);
         Assert.NotNull(token);
 
         // Verify email was sent with the correct link
@@ -63,14 +69,14 @@ public class AuthServiceTests : BaseServiceTests {
     [Fact]
     public async Task VerifyAsync_ShouldActivateUserAndRevokeToken() {
         // Arrange
-        var user = new User { Email = "verify@example.com", PasswordHash = "hashed_password", Role = Role.Unverified };
-        var token = new VerificationToken { Token = "verify-token-to-revoke", Expires = DateTime.UtcNow.AddDays(1), User = user };
+        User user = new() { Email = "verify@example.com", PasswordHash = "hashed_password", Role = Role.Unverified };
+        VerificationToken token = new() { Token = "verify-token-to-revoke", Expires = DateTime.UtcNow.AddDays(1), User = user };
         DbContext.Users.Add(user);
         DbContext.VerificationTokens.Add(token);
         await DbContext.SaveChangesAsync();
 
         // Act
-        var result = await _authService.VerifyAsync(token.Token);
+        bool result = await _authService.VerifyAsync(token.Token);
 
         // Assert
         Assert.True(result);
@@ -83,15 +89,15 @@ public class AuthServiceTests : BaseServiceTests {
     [Fact]
     public async Task LoginAsync_ShouldReturnAuthResult_WhenCredentialsAreValid() {
         // Arrange
-        var user = new User { Email = "login@example.com", PasswordHash = "hashed_password", Role = Role.Viewer };
+        User user = new() { Email = "login@example.com", PasswordHash = "hashed_password", Role = Role.Viewer };
         DbContext.Users.Add(user);
         await DbContext.SaveChangesAsync();
-        var refreshToken = new RefreshToken { Token = "refresh-1", Expires = DateTime.UtcNow.AddDays(7), User = user };
+        RefreshToken refreshToken = new() { Token = "refresh-1", Expires = DateTime.UtcNow.AddDays(7), User = user };
         _tokenGeneratorMock.Setup(g => g.GenerateRefreshToken(user)).Returns(refreshToken);
         _tokenGeneratorMock.Setup(g => g.GenerateAccessToken(user)).Returns("access-token-1");
 
         // Act
-        var result = await _authService.LoginAsync("login@example.com", "password");
+        AuthResult? result = await _authService.LoginAsync("login@example.com", "password");
 
         // Assert
         Assert.NotNull(result);

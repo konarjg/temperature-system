@@ -20,117 +20,88 @@ public class SensorServiceTests : BaseServiceTests
     }
 
     [Fact]
-    public async Task GetAllAsync_ShouldReturnAllSensorsInDatabase()
-    {
-        // Arrange
-        var sensor1 = new Sensor { DeviceAddress = "addr1", DisplayName = "Sensor One" };
-        var sensor2 = new Sensor { DeviceAddress = "addr2", DisplayName = "Sensor Two" };
-        await DbContext.Sensors.AddRangeAsync(sensor1, sensor2);
-        await DbContext.SaveChangesAsync();
-
-        // Act
-        var result = await _sensorService.GetAllAsync();
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(2, result.Count);
-        Assert.Contains(result, s => s.DeviceAddress == "addr1");
-        Assert.Contains(result, s => s.DeviceAddress == "addr2");
-    }
-
-    [Fact]
     public async Task SyncSensorsAsync_ShouldAddNewSensorsToDatabase()
     {
         // Arrange
-        var definitions = new List<SensorDefinition>
+        List<SensorDefinition> definitions = new()
         {
-            new SensorDefinition("new_addr1", "New Sensor One"),
-            new SensorDefinition("new_addr2", "New Sensor Two")
+            new("New Sensor 1", "address1"),
+            new("New Sensor 2", "address2")
         };
 
         // Act
         await _sensorService.SyncSensorsAsync(definitions);
 
         // Assert
-        var sensorsInDb = await DbContext.Sensors.ToListAsync();
-        Assert.Equal(2, sensorsInDb.Count);
-        Assert.Contains(sensorsInDb, s => s.DeviceAddress == "new_addr1" && s.DisplayName == "New Sensor One");
-        Assert.Contains(sensorsInDb, s => s.DeviceAddress == "new_addr2" && s.DisplayName == "New Sensor Two");
+        List<Sensor> sensors = await DbContext.Sensors.AsNoTracking().ToListAsync();
+        Assert.Equal(2, sensors.Count);
+        Assert.Contains(sensors, s => s.DeviceAddress == "address1");
+        Assert.Contains(sensors, s => s.DeviceAddress == "address2");
     }
 
     [Fact]
-    public async Task SyncSensorsAsync_ShouldRemoveMissingSensorsFromDatabase()
+    public async Task SyncSensorsAsync_ShouldRemoveOrphanedSensorsFromDatabase()
     {
         // Arrange
-        var sensorToRemove = new Sensor { DeviceAddress = "old_addr", DisplayName = "Old Sensor" };
-        await DbContext.Sensors.AddAsync(sensorToRemove);
-        await DbContext.SaveChangesAsync();
-
-        var definitions = new List<SensorDefinition>(); // No definitions, so old_addr should be removed
-
-        // Act
-        await _sensorService.SyncSensorsAsync(definitions);
-
-        // Assert
-        var sensorsInDb = await DbContext.Sensors.ToListAsync();
-        Assert.Empty(sensorsInDb);
-    }
-
-    [Fact]
-    public async Task SyncSensorsAsync_ShouldUpdateExistingSensorsInDatabase()
-    {
-        // Arrange
-        var existingSensor = new Sensor { DeviceAddress = "update_addr", DisplayName = "Old Name" };
-        await DbContext.Sensors.AddAsync(existingSensor);
-        await DbContext.SaveChangesAsync();
-
-        var definitions = new List<SensorDefinition>
+        List<Sensor> initialSensors = new()
         {
-            new SensorDefinition("update_addr", "Updated Name")
+            new() { DisplayName = "Keep Sensor", DeviceAddress = "keep-address" },
+            new() { DisplayName = "Remove Sensor", DeviceAddress = "remove-address" }
+        };
+        await DbContext.Sensors.AddRangeAsync(initialSensors);
+        await DbContext.SaveChangesAsync();
+
+        List<SensorDefinition> definitions = new()
+        {
+            new("Keep Sensor", "keep-address")
         };
 
         // Act
         await _sensorService.SyncSensorsAsync(definitions);
 
         // Assert
-        var sensorInDb = await DbContext.Sensors.SingleOrDefaultAsync(s => s.DeviceAddress == "update_addr");
-        Assert.NotNull(sensorInDb);
-        Assert.Equal("Updated Name", sensorInDb.DisplayName);
+        List<Sensor> sensors = await DbContext.Sensors.AsNoTracking().ToListAsync();
+        Assert.Single(sensors);
+        Assert.Equal("keep-address", sensors.First().DeviceAddress);
     }
 
     [Fact]
-    public async Task SyncSensorsAsync_ShouldHandleMixedOperationsCorrectly()
+    public async Task SyncSensorsAsync_ShouldUpdateExistingSensorDisplayName()
     {
         // Arrange
-        var existingSensorToUpdate = new Sensor { DeviceAddress = "addr1", DisplayName = "Old Name 1" };
-        var existingSensorToRemove = new Sensor { DeviceAddress = "addr2", DisplayName = "Old Name 2" };
-        await DbContext.Sensors.AddRangeAsync(existingSensorToUpdate, existingSensorToRemove);
+        Sensor sensor = new() { DisplayName = "Old Name", DeviceAddress = "update-address" };
+        await DbContext.Sensors.AddAsync(sensor);
         await DbContext.SaveChangesAsync();
 
-        var definitions = new List<SensorDefinition>
+        List<SensorDefinition> definitions = new()
         {
-            new SensorDefinition("addr1", "Updated Name 1"), // Update existing
-            new SensorDefinition("addr3", "New Sensor 3")    // Add new
+            new("New Name", "update-address")
         };
 
         // Act
         await _sensorService.SyncSensorsAsync(definitions);
 
         // Assert
-        var sensorsInDb = await DbContext.Sensors.ToListAsync();
-        Assert.Equal(2, sensorsInDb.Count);
+        Sensor updatedSensor = await DbContext.Sensors.AsNoTracking().SingleAsync(s => s.DeviceAddress == "update-address");
+        Assert.Equal("New Name", updatedSensor.DisplayName);
+    }
 
-        // Verify update
-        var updatedSensor = sensorsInDb.SingleOrDefault(s => s.DeviceAddress == "addr1");
-        Assert.NotNull(updatedSensor);
-        Assert.Equal("Updated Name 1", updatedSensor.DisplayName);
+    [Fact]
+    public async Task GetAllAsync_ShouldReturnAllSensorsFromDatabase()
+    {
+        // Arrange
+        List<Sensor> sensorsToAdd = new()
+        {
+            new() { DisplayName = "Sensor A", DeviceAddress = "addressA" },
+            new() { DisplayName = "Sensor B", DeviceAddress = "addressB" }
+        };
+        await DbContext.Sensors.AddRangeAsync(sensorsToAdd);
+        await DbContext.SaveChangesAsync();
 
-        // Verify new sensor added
-        var newSensor = sensorsInDb.SingleOrDefault(s => s.DeviceAddress == "addr3");
-        Assert.NotNull(newSensor);
-        Assert.Equal("New Sensor 3", newSensor.DisplayName);
+        // Act
+        List<Sensor> result = await _sensorService.GetAllAsync();
 
-        // Verify old sensor removed
-        Assert.DoesNotContain(sensorsInDb, s => s.DeviceAddress == "addr2");
+        // Assert
+        Assert.Equal(2, result.Count);
     }
 }

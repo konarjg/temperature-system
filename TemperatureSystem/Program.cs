@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using TemperatureSystem.Endpoints;
 using TemperatureSystem.HostedServices;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -44,16 +44,21 @@ app.UseHttpsRedirection();
 app.MapMeasurementEndpoints();
 app.MapSensorEndpoints();
 
-using (IServiceScope scope = app.Services.CreateScope()) {
-  try {
-    DbContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
-    dbContext.Database.Migrate();
-  }
-  catch (Exception ex) {
-    ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "An error occurred while migrating the database.");
-    throw; 
-  }
+if (!app.Environment.IsEnvironment("Testing"))
+{
+    using (IServiceScope scope = app.Services.CreateScope()) {
+      try {
+        DbContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
+        dbContext.Database.Migrate();
+      }
+      catch (Exception ex) {
+        ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+        throw;
+      }
+    }
 }
 
 app.Run();
+
+public partial class Program { }
