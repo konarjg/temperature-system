@@ -15,7 +15,7 @@ public class VerificationTokenRepository(IDatabaseContext databaseContext) : IVe
   }
 
   public async Task<List<VerificationToken>> GetAllInactiveAsync() {
-    return await databaseContext.VerificationTokens.Where(v => !v.IsActive).ToListAsync();
+    return await databaseContext.VerificationTokens.Where(v => v.Revoked != null || v.Expires < DateTime.UtcNow).ToListAsync();
   }
 
   public async Task AddAsync(VerificationToken token) {

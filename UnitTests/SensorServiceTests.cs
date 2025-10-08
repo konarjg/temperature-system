@@ -1,99 +1,90 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Domain.Entities;
+using Domain.Entities.Util;
+using Domain.Records;
 using Domain.Repositories;
 using Domain.Services;
 using Domain.Services.Util;
 using Moq;
-using Xunit;
+using System.Threading.Tasks;
 
-namespace UnitTests;
-
-public class SensorServiceTests
-{
+namespace UnitTests {
+  public class SensorServiceTests {
     private readonly Mock<ISensorRepository> _sensorRepositoryMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly SensorService _sensorService;
 
-    public SensorServiceTests()
-    {
-        _sensorRepositoryMock = new Mock<ISensorRepository>();
-        _unitOfWorkMock = new Mock<IUnitOfWork>();
-        _sensorService = new SensorService(_sensorRepositoryMock.Object, _unitOfWorkMock.Object);
+    public SensorServiceTests() {
+      _sensorRepositoryMock = new Mock<ISensorRepository>();
+      _unitOfWorkMock = new Mock<IUnitOfWork>();
+      _sensorService = new SensorService(_sensorRepositoryMock.Object, _unitOfWorkMock.Object);
     }
 
     [Fact]
-    public async Task GetAllAsync_ShouldReturnAllSensorsFromRepository()
-    {
-        // Arrange
-            var expectedSensors = new List<Sensor> { new Sensor {
-                DeviceAddress = "test",
-                DisplayName = "Living Room"
-            }, new Sensor {
-                DeviceAddress = "test2",
-                DisplayName = "Bedroom"
-            }
-        };
-        _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(expectedSensors);
+    public async Task DeleteByIdAsync_WithExistingSensor_ShouldSucceed() {
+      // Arrange
+      long sensorId = 1L;
+      Sensor sensor = new() { Id = sensorId, DisplayName = "Test Sensor", DeviceAddress = "test_address", State = SensorState.Operational };
 
-        // Act
-        var result = await _sensorService.GetAllAsync();
+      _sensorRepositoryMock.Setup(r => r.GetByIdAsync(sensorId)).ReturnsAsync(sensor);
+      _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
-        // Assert
-        Assert.Equal(expectedSensors, result);
-        _sensorRepositoryMock.Verify(r => r.GetAllAsync(), Times.Once);
+      // Act
+      OperationResult result = await _sensorService.DeleteByIdAsync(sensorId);
+
+      // Assert
+      Assert.Equal(OperationResult.Success, result);
+      _sensorRepositoryMock.Verify(r => r.Remove(sensor), Times.Once);
+      _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task SyncSensorsAsync_ShouldAddNewSensors()
-    {
-        // Arrange
-        var definitions = new List<SensorDefinition> { new SensorDefinition("Address1", "Sensor1") };
-        var existingSensors = new List<Sensor>();
-        _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
+    public async Task DeleteByIdAsync_WithNonExistentSensor_ShouldReturnNotFound() {
+      // Arrange
+      long sensorId = 99L;
+      _sensorRepositoryMock.Setup(r => r.GetByIdAsync(sensorId)).ReturnsAsync((Sensor?)null);
 
-        // Act
-        await _sensorService.SyncSensorsAsync(definitions);
+      // Act
+      OperationResult result = await _sensorService.DeleteByIdAsync(sensorId);
 
-        // Assert
-        _sensorRepositoryMock.Verify(r => r.AddRangeAsync(It.Is<List<Sensor>>(list => list.Count == 1 && list[0].DeviceAddress == "Address1")), Times.Once);
-        _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Once);
+      // Assert
+      Assert.Equal(OperationResult.NotFound, result);
+      _sensorRepositoryMock.Verify(r => r.Remove(It.IsAny<Sensor>()), Times.Never);
+      _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Never);
     }
 
     [Fact]
-    public async Task SyncSensorsAsync_ShouldRemoveMissingSensors()
-    {
-        // Arrange
-        var definitions = new List<SensorDefinition>();
-        var existingSensors = new List<Sensor> { new Sensor {
-                DeviceAddress = "Address1",
-                DisplayName = "Living Room"
-            }
-        };
-        _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
+    public async Task CreateAsync_ShouldSucceed() {
+      // Arrange
+      Sensor sensor = new() { Id = 1L, DisplayName = "New Sensor", DeviceAddress = "new_address", State = SensorState.Operational };
+      _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
-        // Act
-        await _sensorService.SyncSensorsAsync(definitions);
+      // Act
+      bool result = await _sensorService.CreateAsync(sensor);
 
-        // Assert
-        _sensorRepositoryMock.Verify(r => r.RemoveRange(It.Is<List<Sensor>>(list => list.Count == 1 && list[0].DeviceAddress == "Address1")), Times.Once);
-        _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Once);
+      // Assert
+      Assert.True(result);
+      _sensorRepositoryMock.Verify(r => r.AddAsync(sensor), Times.Once);
+      _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task SyncSensorsAsync_ShouldUpdateExistingSensors()
-    {
-        // Arrange
-        var definitions = new List<SensorDefinition> { new SensorDefinition("Address1", "New Name") };
-        var existingSensors = new List<Sensor> { new Sensor { DeviceAddress = "Address1", DisplayName = "Old Name" } };
-        _sensorRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(existingSensors);
+    public async Task UpdateDefinitionByIdAsync_WithExistingSensor_ShouldSucceed() {
+      // Arrange
+      long sensorId = 1L;
+      Sensor sensor = new() { Id = sensorId, DisplayName = "Old Name", DeviceAddress = "old_address", State = SensorState.Operational };
+      SensorDefinitionUpdateData updateData = new("New Name", "new_address");
 
-        // Act
-        await _sensorService.SyncSensorsAsync(definitions);
+      _sensorRepositoryMock.Setup(r => r.GetByIdAsync(sensorId)).ReturnsAsync(sensor);
+      _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
-        // Assert
-        Assert.Equal("New Name", existingSensors.First().DisplayName);
-        _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Once);
+      // Act
+      OperationResult result = await _sensorService.UpdateDefinitionByIdAsync(sensorId, updateData);
+
+      // Assert
+      Assert.Equal(OperationResult.Success, result);
+      Assert.Equal("New Name", sensor.DisplayName);
+      Assert.Equal("new_address", sensor.DeviceAddress);
+      _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Once);
     }
+  }
 }

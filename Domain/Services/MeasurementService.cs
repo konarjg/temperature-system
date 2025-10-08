@@ -1,6 +1,7 @@
 ﻿namespace Domain.Services;
 
 using Entities;
+using Entities.Util;
 using Interfaces;
 using Records;
 using Repositories;
@@ -12,20 +13,14 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IU
     return await measurementRepository.GetByIdAsync(id);
   }
 
-  public async Task<Measurement?> GetLatestAsync(long sensorId) {
-    return await measurementRepository.GetLatestAsync(sensorId);
+  public async Task<List<Measurement>> GetLatestAsync(long sensorId, int points) {
+    return await measurementRepository.GetLatestAsync(sensorId, points);
   }
 
-  public async Task<List<Measurement>> GetHistoryAsync(DateTime startDate,
-    DateTime endDate) {
+  public async Task<PagedResult<Measurement>> GetHistoryPageAsync(DateTime startDate,
+    DateTime endDate, int page, int pageSize, long? sensorId = null) {
     
-    return await measurementRepository.GetHistoryAsync(startDate, endDate);
-  }
-  
-  public async Task<List<Measurement>> GetHistoryForSensorAsync(DateTime startDate,
-    DateTime endDate, long sensorId) {
-    
-    return await measurementRepository.GetHistoryForSensorAsync(startDate, endDate, sensorId);
+    return await measurementRepository.GetHistoryPageAsync(startDate, endDate, page, pageSize, sensorId);
   }
   
   public async Task<List<AggregatedMeasurement>> GetAggregatedHistoryForSensorAsync(DateTime startDate,
@@ -34,24 +29,20 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IU
     
     return await measurementRepository.GetAggregatedHistoryForSensorAsync(startDate,endDate,granularity, sensorId);
   }
-
-  public async Task<bool> CreateAsync(Measurement measurement) {
-    await measurementRepository.AddAsync(measurement);
-    return await unitOfWork.CompleteAsync() != 0;
-  }
+  
   public async Task<bool> CreateRangeAsync(List<Measurement> measurements) {
     await measurementRepository.AddRangeAsync(measurements);
     return await unitOfWork.CompleteAsync() != 0;
   }
 
-  public async Task<bool> DeleteByIdAsync(long id) {
+  public async Task<OperationResult> DeleteByIdAsync(long id) {
     Measurement? measurement = await measurementRepository.GetByIdAsync(id);
 
     if (measurement == null) {
-      return false;
+      return OperationResult.NotFound;
     }
     
     measurementRepository.Remove(measurement);
-    return await unitOfWork.CompleteAsync() != 0;
+    return await unitOfWork.CompleteAsync() != 0 ? OperationResult.Success : OperationResult.ServerError;
   }
 }

@@ -1,160 +1,179 @@
-﻿using System.Threading.Tasks;
 using Domain.Entities;
 using Domain.Entities.Util;
+using Domain.Records;
 using Domain.Repositories;
 using Domain.Services;
 using Domain.Services.External;
+using Domain.Services.Util;
 using Moq;
-using Xunit;
-using System.Collections.Generic;
-using System;
+using System.Threading.Tasks;
 
-namespace UnitTests;
-
-public class UserServiceTests {
+namespace UnitTests {
+  public class UserServiceTests {
     private readonly Mock<IUserRepository> _userRepositoryMock;
     private readonly Mock<IUnitOfWork> _unitOfWorkMock;
     private readonly Mock<IPasswordSecurity> _passwordSecurityMock;
     private readonly UserService _userService;
 
     public UserServiceTests() {
-        _userRepositoryMock = new Mock<IUserRepository>();
-        _unitOfWorkMock = new Mock<IUnitOfWork>();
-        _passwordSecurityMock = new Mock<IPasswordSecurity>();
-        _userService = new UserService(_userRepositoryMock.Object, _unitOfWorkMock.Object, _passwordSecurityMock.Object);
+      _userRepositoryMock = new Mock<IUserRepository>();
+      _unitOfWorkMock = new Mock<IUnitOfWork>();
+      _passwordSecurityMock = new Mock<IPasswordSecurity>();
+
+      _userService = new UserService(
+          _userRepositoryMock.Object,
+          _unitOfWorkMock.Object,
+          _passwordSecurityMock.Object);
     }
 
     [Fact]
-    public async Task GetByIdAsync_ShouldReturnUser_WhenUserExists()
-    {
-        // Arrange
-        var user = new User {
-            Id = 1,
-            Email = "test@test.com",
-            PasswordHash = "abcdadwea",
-            Role = Role.Unverified
-        };
-        _userRepositoryMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(user);
+    public async Task GetByCredentialsAsync_WithValidCredentials_ShouldReturnUser() {
+      // Arrange
+      string email = "test@test.com";
+      string password = "password";
+      string hashedPassword = "hashed_password";
+      User user = new() { Id = 1, Email = email, PasswordHash = hashedPassword, Role = Role.Viewer };
 
-        // Act
-        var result = await _userService.GetByIdAsync(1);
+      _userRepositoryMock.Setup(r => r.ExistsByEmailAsync(email))
+          .ReturnsAsync(true);
+      _userRepositoryMock.Setup(r => r.GetByEmailAsync(email))
+          .ReturnsAsync(user);
+      _passwordSecurityMock.Setup(p => p.Verify(password, hashedPassword))
+          .Returns(true);
 
-        // Assert
-        Assert.Equal(user, result);
+      // Act
+      User? result = await _userService.GetByCredentialsAsync(email, password);
+
+      // Assert
+      Assert.NotNull(result);
+      Assert.Equal(user, result);
     }
 
     [Fact]
-    public async Task GetByCredentialsAsync_ShouldReturnUser_WhenCredentialsAreValid() {
-        // Arrange
-        var user = new User { Id = 1, Email = "test@test.com", PasswordHash = "hashed_password", Role = Role.Viewer };
-        _userRepositoryMock.Setup(r => r.ExistsByEmailAsync("test@test.com")).ReturnsAsync(true);
-        _userRepositoryMock.Setup(r => r.GetByEmailAsync("test@test.com")).ReturnsAsync(user);
-        _passwordSecurityMock.Setup(p => p.Verify("password", "hashed_password")).Returns(true);
+    public async Task GetByCredentialsAsync_WithNonExistentUser_ShouldReturnNull() {
+      // Arrange
+      string email = "nonexistent@test.com";
+      string password = "password";
 
-        // Act
-        var result = await _userService.GetByCredentialsAsync("test@test.com", "password");
+      _userRepositoryMock.Setup(r => r.ExistsByEmailAsync(email))
+          .ReturnsAsync(false);
 
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal(user, result);
+      // Act
+      User? result = await _userService.GetByCredentialsAsync(email, password);
+
+      // Assert
+      Assert.Null(result);
+      _userRepositoryMock.Verify(r => r.GetByEmailAsync(It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task GetByCredentialsAsync_ShouldReturnNull_WhenPasswordIsInvalid() {
-        // Arrange
-        var user = new User { Id = 1, Email = "test@test.com", PasswordHash = "hashed_password", Role = Role.Viewer };
-        _userRepositoryMock.Setup(r => r.ExistsByEmailAsync("test@test.com")).ReturnsAsync(true);
-        _userRepositoryMock.Setup(r => r.GetByEmailAsync("test@test.com")).ReturnsAsync(user);
-        _passwordSecurityMock.Setup(p => p.Verify("wrong_password", "hashed_password")).Returns(false);
+    public async Task GetByCredentialsAsync_WithInvalidPassword_ShouldReturnNull() {
+      // Arrange
+      string email = "test@test.com";
+      string password = "wrong_password";
+      string hashedPassword = "hashed_password";
+      User user = new() { Id = 1, Email = email, PasswordHash = hashedPassword, Role = Role.Viewer };
 
-        // Act
-        var result = await _userService.GetByCredentialsAsync("test@test.com", "wrong_password");
+      _userRepositoryMock.Setup(r => r.ExistsByEmailAsync(email))
+          .ReturnsAsync(true);
+      _userRepositoryMock.Setup(r => r.GetByEmailAsync(email))
+          .ReturnsAsync(user);
+      _passwordSecurityMock.Setup(p => p.Verify(password, hashedPassword))
+          .Returns(false);
 
-        // Assert
-        Assert.Null(result);
+      // Act
+      User? result = await _userService.GetByCredentialsAsync(email, password);
+
+      // Assert
+      Assert.Null(result);
     }
 
     [Fact]
-    public async Task CreateAsync_ShouldHashPasswordAndAddUser() {
-        // Arrange
-        var user = new User { Email = "test@test.com", PasswordHash = "password", Role = Role.Unverified };
-        _userRepositoryMock.Setup(r => r.ExistsByEmailAsync(user.Email)).ReturnsAsync(false);
-        _passwordSecurityMock.Setup(p => p.Hash("password")).Returns("hashed_password");
+    public async Task CreateAsync_WithNewUser_ShouldReturnUser() {
+      // Arrange
+      UserCreateData userCreateData = new("new@test.com", "password", Role.Viewer);
+      string hashedPassword = "hashed_password";
 
-        // Act
-        var result = await _userService.CreateAsync(user);
+      _userRepositoryMock.Setup(r => r.ExistsByEmailAsync(userCreateData.Email))
+          .ReturnsAsync(false);
+      _passwordSecurityMock.Setup(p => p.Hash(userCreateData.Password))
+          .Returns(hashedPassword);
 
-        // Assert
-        Assert.NotNull(result);
-        Assert.Equal("hashed_password", result.PasswordHash);
-        _userRepositoryMock.Verify(r => r.AddAsync(user), Times.Once);
-        _passwordSecurityMock.Verify(p => p.Hash("password"), Times.Once);
+      // Act
+      User? result = await _userService.CreateAsync(userCreateData);
+
+      // Assert
+      Assert.NotNull(result);
+      Assert.Equal(userCreateData.Email, result.Email);
+      Assert.Equal(hashedPassword, result.PasswordHash);
+      _userRepositoryMock.Verify(r => r.AddAsync(It.Is<User>(u => u.Email == userCreateData.Email)), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAllInactiveUsersAsync_ShouldRemoveInactiveUsers()
-    {
-        // Arrange
-        var inactiveUsers = new List<User> { new User {
-            Id = 1,
-            Email = "test1@test.com",
-            PasswordHash = "adavavaw311",
-            Role = Role.Unverified
-        }, new User {
-                Id = 2,
-                Email = "test2@test.com",
-                PasswordHash = "bawdwadwada",
-                Role = Role.Unverified
-            }
-        };
-        _userRepositoryMock.Setup(r => r.GetAllInactiveAsync()).ReturnsAsync(inactiveUsers);
-        _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(inactiveUsers.Count);
+    public async Task CreateAsync_WithExistingEmail_ShouldReturnNull() {
+      // Arrange
+      UserCreateData userCreateData = new("existing@test.com", "password", Role.Viewer);
 
-        // Act
-        var result = await _userService.DeleteAllInactiveUsersAsync();
+      _userRepositoryMock.Setup(r => r.ExistsByEmailAsync(userCreateData.Email))
+          .ReturnsAsync(true);
 
-        // Assert
-        Assert.True(result);
-        _userRepositoryMock.Verify(r => r.Remove(It.IsAny<User>()), Times.Exactly(2));
+      // Act
+      User? result = await _userService.CreateAsync(userCreateData);
+
+      // Assert
+      Assert.Null(result);
+      _userRepositoryMock.Verify(r => r.AddAsync(It.IsAny<User>()), Times.Never);
     }
 
     [Fact]
-    public async Task UpdateAsync_ShouldUpdateUserData_WhenUserExists()
-    {
-        // Arrange
-        var existingUser = new User { Id = 1, Email = "old@test.com", PasswordHash = "old_hash", Role = Role.Viewer };
-        var newData = new User { Email = "new@test.com", PasswordHash = "new_password", Role = Role.Admin };
-        _userRepositoryMock.Setup(r => r.GetByIdAsync(1)).ReturnsAsync(existingUser);
-        _passwordSecurityMock.Setup(p => p.Hash("new_password")).Returns("new_hash");
-        _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
+    public async Task UpdateRoleByIdAsync_WithExistingUser_ShouldSucceed() {
+      // Arrange
+      long userId = 1L;
+      User user = new() { Id = userId, Email = "test@test.com", PasswordHash = "hash", Role = Role.Viewer };
+      UserRoleUpdateData updateData = new(Role.Admin);
 
-        // Act
-        var result = await _userService.UpdateAsync(1, newData);
+      _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+      _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
-        // Assert
-        Assert.True(result);
-        Assert.Equal("new@test.com", existingUser.Email);
-        Assert.Equal("new_hash", existingUser.PasswordHash);
-        Assert.Equal(Role.Admin, existingUser.Role);
+      // Act
+      OperationResult result = await _userService.UpdateRoleByIdAsync(userId, updateData);
+
+      // Assert
+      Assert.Equal(OperationResult.Success, result);
+      Assert.Equal(updateData.Role, user.Role);
+      _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAsync_ShouldSetDeletedDate()
-    {
-        // Arrange
-        var user = new User {
-            Id = 1,
-            Email = "test@test.com",
-            PasswordHash = "adavwafwg",
-            Role = Role.Unverified
-        };
-        _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
+    public async Task DeleteByIdAsync_WithExistingUser_ShouldSucceed() {
+      // Arrange
+      long userId = 1L;
+      User user = new() { Id = userId, Email = "test@test.com", PasswordHash = "hash", Role = Role.Viewer, Deleted = null};
 
-        // Act
-        var result = await _userService.DeleteAsync(user);
+      _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync(user);
+      _unitOfWorkMock.Setup(uow => uow.CompleteAsync()).ReturnsAsync(1);
 
-        // Assert
-        Assert.True(result);
-        Assert.NotNull(user.Deleted);
+      // Act
+      OperationResult result = await _userService.DeleteByIdAsync(userId);
+
+      // Assert
+      Assert.Equal(OperationResult.Success, result);
+      Assert.NotNull(user.Deleted);
+      _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Once);
     }
+
+    [Fact]
+    public async Task DeleteByIdAsync_WithNonExistentUser_ShouldReturnNotFound() {
+      // Arrange
+      long userId = 99L;
+      _userRepositoryMock.Setup(r => r.GetByIdAsync(userId)).ReturnsAsync((User?)null);
+
+      // Act
+      OperationResult result = await _userService.DeleteByIdAsync(userId);
+
+      // Assert
+      Assert.Equal(OperationResult.NotFound, result);
+      _unitOfWorkMock.Verify(uow => uow.CompleteAsync(), Times.Never);
+    }
+  }
 }
