@@ -10,7 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
 public class JwtTokenGenerator(IConfiguration configuration) : ITokenGenerator {
-    private readonly SymmetricSecurityKey _securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["jwt:key"] ?? ""));
+    private readonly SymmetricSecurityKey _securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"] ?? ""));
 
     public string GenerateAccessToken(User user)
     {
@@ -67,12 +67,14 @@ public class JwtTokenGenerator(IConfiguration configuration) : ITokenGenerator {
 
     public VerificationToken GenerateVerificationToken(User user)
     {
-        byte[] randomNumber = new byte[64];
+        byte[] randomNumber = new byte[20];
 
         using (RandomNumberGenerator rng = RandomNumberGenerator.Create())
         {
             rng.GetBytes(randomNumber);
-            string tokenString = Convert.ToBase64String(randomNumber);
+            string tokenString = Convert.ToBase64String(randomNumber).Replace('+', '-')  
+                                        .Replace('/', '_')  
+                                        .TrimEnd('=');  
 
             int expirationDays = int.Parse(configuration["Jwt:UserVerificationTokenExpirationDays"] ?? "30");
 

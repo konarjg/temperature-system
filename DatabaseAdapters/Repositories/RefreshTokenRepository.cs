@@ -15,8 +15,9 @@ public class RefreshTokenRepository(IDatabaseContext databaseContext) : IRefresh
   }
 
   public async Task<List<RefreshToken>> GetAllInactiveAsync() {
-    return await databaseContext.RefreshTokens.Where(r => !r.IsActive).ToListAsync();
+    return await databaseContext.RefreshTokens.Where(r => r.Revoked != null || r.Expires < DateTime.UtcNow).ToListAsync();
   }
+  
   public async Task AddAsync(RefreshToken token) {
     await databaseContext.RefreshTokens.AddAsync(token);
   }

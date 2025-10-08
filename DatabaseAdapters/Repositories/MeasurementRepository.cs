@@ -2,31 +2,41 @@
 
 using System.ComponentModel;
 using Domain.Entities;
+using Domain.Entities.Util;
 using Domain.Records;
 using Domain.Repositories;
 using Domain.Services.Util;
 using Microsoft.EntityFrameworkCore;
 
-public class MeasurementRepository(IDatabaseContext databaseContext) : IMeasurementRepository{
+public class MeasurementRepository(IDatabaseContext databaseContext) : IMeasurementRepository {
 
   public async Task<Measurement?> GetByIdAsync(long id) {
     return await databaseContext.Measurements.Include(m => m.Sensor).FirstOrDefaultAsync(m => m.Id == id);
   }
   
-  public async Task<Measurement?> GetLatestAsync(long sensorId) {
-    return await databaseContext.Measurements.Where(m => m.SensorId == sensorId).OrderByDescending(m => m.Timestamp).FirstOrDefaultAsync();
+  public async Task<List<Measurement>> GetLatestAsync(long sensorId, int points) {
+    return await databaseContext.Measurements.Where(m => m.SensorId == sensorId).OrderByDescending(m => m.Timestamp).Take(points).ToListAsync();
   }
 
-  public async Task<List<Measurement>> GetHistoryAsync(DateTime startDate,
-    DateTime endDate) {
+  public async Task<PagedResult<Measurement>> GetHistoryPageAsync(
+    DateTime startDate,
+    DateTime endDate,
+    int page,
+    int pageSize,
+    long? sensorId = null) {
+    IQueryable<Measurement> query = databaseContext.Measurements
+                                                   .Where(m => m.Timestamp >= startDate && m.Timestamp < endDate);
+    
+    if (sensorId != null) {
+      query = query.Where(m => m.SensorId == sensorId.Value);
+    }
+    
+    query = query.OrderByDescending(m => m.Timestamp);
 
-    return await databaseContext.Measurements.Where(m => m.Timestamp >= startDate && m.Timestamp < endDate).ToListAsync();
-  }
-  
-  public async Task<List<Measurement>> GetHistoryForSensorAsync(DateTime startDate,
-    DateTime endDate, long sensorId) {
-
-    return await databaseContext.Measurements.Where(m => m.Timestamp >= startDate && m.Timestamp < endDate && m.SensorId == sensorId).OrderByDescending(m => m.Timestamp).ToListAsync();
+    int totalCount = await query.CountAsync();
+    List<Measurement> items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+    
+    return new PagedResult<Measurement>(items, totalCount, page, pageSize);
   }
 
   public async Task<List<AggregatedMeasurement>> GetAggregatedHistoryForSensorAsync(DateTime startDate,
@@ -37,12 +47,10 @@ public class MeasurementRepository(IDatabaseContext databaseContext) : IMeasurem
 
     List<AggregatedMeasurement> aggregatedResult = await GroupAndAggregateAsync(query, granularity);
 
-    return aggregatedResult
-        .OrderByDescending(a => a.TimeStamp)
-        .ToList();
-}
+    return aggregatedResult.OrderByDescending(a => a.TimeStamp).ToList();
+  }
 
-private async Task<List<AggregatedMeasurement>> GroupAndAggregateAsync(IQueryable<Measurement> query,
+  private async Task<List<AggregatedMeasurement>> GroupAndAggregateAsync(IQueryable<Measurement> query,
     MeasurementHistoryGranularity granularity) {
     switch (granularity) {
         case MeasurementHistoryGranularity.Hourly:
@@ -72,7 +80,7 @@ private async Task<List<AggregatedMeasurement>> GroupAndAggregateAsync(IQueryabl
         default:
             throw new ArgumentOutOfRangeException(nameof(granularity));
     }
-}
+  }
   
   public async Task AddAsync(Measurement measurement) {
     await databaseContext.Measurements.AddAsync(measurement);
