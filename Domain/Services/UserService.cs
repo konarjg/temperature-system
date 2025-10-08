@@ -3,13 +3,17 @@
 using Entities;
 using External;
 using Interfaces;
+using Mappers;
+using Records;
 using Repositories;
+using Util;
 
 public class UserService(IUserRepository userRepository, IUnitOfWork unitOfWork, IPasswordSecurity passwordSecurity) : IUserService{
 
   public async Task<User?> GetByIdAsync(long id) {
     return await userRepository.GetByIdAsync(id);
   }
+  
   public async Task<User?> GetByCredentialsAsync(string email,
     string password) {
 
@@ -26,15 +30,15 @@ public class UserService(IUserRepository userRepository, IUnitOfWork unitOfWork,
     return user;
   }
 
-  public async Task<User?> CreateAsync(User data) {
+  public async Task<User?> CreateAsync(UserCreateData data) {
     if (await userRepository.ExistsByEmailAsync(data.Email)) {
       return null;
     }
 
-    data.PasswordHash = passwordSecurity.Hash(data.PasswordHash);
-    await userRepository.AddAsync(data);
+    User user = data.ToEntity(passwordSecurity);
+    await userRepository.AddAsync(user);
 
-    return data;
+    return user;
   }
 
   public async Task<bool> DeleteAllInactiveUsersAsync() {
@@ -47,24 +51,42 @@ public class UserService(IUserRepository userRepository, IUnitOfWork unitOfWork,
     return await unitOfWork.CompleteAsync() != 0;
   }
 
-  public async Task<bool> UpdateAsync(long id,
-    User data) {
+  public async Task<OperationResult> UpdateRoleByIdAsync(long id,
+    UserRoleUpdateData data) {
+    
+    User? user = await userRepository.GetByIdAsync(id);
+
+    if (user == null) {
+      return OperationResult.NotFound;
+    }
+    
+    user.UpdateRole(data);
+    
+    return await unitOfWork.CompleteAsync() != 0 ? OperationResult.Success : OperationResult.ServerError;
+  }
+
+  public async Task<OperationResult> UpdateCredentialsByIdAsync(long id,
+    UserCredentialsUpdateData data) {
 
     User? user = await userRepository.GetByIdAsync(id);
 
     if (user == null) {
-      return false;
+      return OperationResult.NotFound;
     }
     
-    user.Email = data.Email;
-    user.PasswordHash = passwordSecurity.Hash(data.PasswordHash);
-    user.Role = data.Role;
+    user.UpdateCredentials(data, passwordSecurity);
     
-    return await unitOfWork.CompleteAsync() != 0;
+    return await unitOfWork.CompleteAsync() != 0 ? OperationResult.Success : OperationResult.ServerError;
   }
 
-  public async Task<bool> DeleteAsync(User user) {
+  public async Task<OperationResult> DeleteByIdAsync(long id) {
+    User? user = await userRepository.GetByIdAsync(id);
+
+    if (user == null) {
+      return OperationResult.NotFound;
+    }
+    
     user.Deleted = DateTime.UtcNow;
-    return await unitOfWork.CompleteAsync() != 0;
+    return await unitOfWork.CompleteAsync() != 0 ? OperationResult.Success : OperationResult.ServerError;
   }
 }

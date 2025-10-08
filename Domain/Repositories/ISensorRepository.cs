@@ -1,9 +1,12 @@
 ﻿namespace Domain.Repositories;
 
 using Entities;
+using Entities.Util;
 
 public interface ISensorRepository {
+  Task<Sensor?> GetByIdAsync(long id);
   Task<List<Sensor>> GetAllAsync();
-  Task AddRangeAsync(List<Sensor> sensors);
-  void RemoveRange(List<Sensor> sensors);
+  Task<List<Sensor>> GetAllByStateAsync(SensorState state);
+  Task AddAsync(Sensor sensor); 
+  void Remove(Sensor sensor);
 }

@@ -6,6 +6,7 @@ using External;
 using Interfaces;
 using Records;
 using Repositories;
+using Util;
 
 public class AuthService(ITokenGenerator tokenGenerator, IVerificationTokenRepository verificationTokenRepository, IRefreshTokenRepository refreshTokenRepository, IUserService userService, IUnitOfWork unitOfWork, IEmailService emailService, IEmailSettingsProvider emailSettingsProvider) : IAuthService{
   private const string VerificationEmailSubject = "Temperature System email verification";
@@ -65,34 +66,35 @@ public class AuthService(ITokenGenerator tokenGenerator, IVerificationTokenRepos
     return await unitOfWork.CompleteAsync() != 0;
   }
   
-  public async Task<bool> RegisterAsync(User data) {
+  public async Task<RegisterResult> RegisterAsync(UserCreateData data) {
     User? user = await userService.CreateAsync(data);
 
     if (user == null) {
-      return false;
+      return new RegisterResult(null, RegisterState.Conflict);
     }
 
     VerificationToken token = tokenGenerator.GenerateVerificationToken(user);
     verificationTokenRepository.AddAsync(token);
 
     if (await unitOfWork.CompleteAsync() <= 0) {
-      return false;
+      return new RegisterResult(null, RegisterState.ServerError);
     }
 
     string body = string.Format(VerificationEmailBodyFormat,emailSettingsProvider.VerificationUrl,token.Token);
-    return await emailService.SendEmail(VerificationEmailSubject, body, user.Email);
+    return await emailService.SendEmail(VerificationEmailSubject, body, user.Email) ? new RegisterResult(user, RegisterState.Success) : new RegisterResult(null, RegisterState.ServerError);
   }
-  public async Task<bool> VerifyAsync(string token) {
+  
+  public async Task<OperationResult> VerifyAsync(string token) {
     VerificationToken? verificationToken = await verificationTokenRepository.GetByTokenAsync(token);
 
     if (verificationToken == null) {
-      return false;
+      return OperationResult.NotFound;
     }
 
     User user = verificationToken.User;
-    user.Role = Role.Viewer;
     verificationToken.Revoked = DateTime.UtcNow;
+    await unitOfWork.CompleteAsync();
     
-    return await unitOfWork.CompleteAsync() != 0;
+    return await userService.UpdateRoleByIdAsync(user.Id,new UserRoleUpdateData(Role.Viewer));
   }
 }
