@@ -12,6 +12,13 @@ using Microsoft.IdentityModel.Tokens;
 public class JwtTokenGenerator(IConfiguration configuration) : ITokenGenerator {
     private readonly SymmetricSecurityKey _securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"] ?? ""));
 
+    static JwtTokenGenerator()
+    {
+        // Prevents JWT handler from mapping claims to long XML names
+        JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+        JwtSecurityTokenHandler.DefaultOutboundClaimTypeMap.Clear();
+    }
+
     public string GenerateAccessToken(User user)
     {
         List<Claim> claims = new()

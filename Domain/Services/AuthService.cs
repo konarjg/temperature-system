@@ -52,7 +52,7 @@ public class AuthService(ITokenGenerator tokenGenerator, IVerificationTokenRepos
     
     string accessToken = tokenGenerator.GenerateAccessToken(user);
 
-    return new AuthResult(user,refreshToken,accessToken);
+    return new AuthResult(user,newToken,accessToken);
   }
 
   public async Task<bool> LogoutAsync(string token) {
