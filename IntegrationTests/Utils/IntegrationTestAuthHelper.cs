@@ -1,33 +1,34 @@
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Domain.Entities.Util;
-using Domain.Records;
-using TemperatureSystem.Dto;
 
 namespace IntegrationTests.Utils {
   public static class IntegrationTestAuthHelper {
     public static async Task<HttpClient> GetAuthenticatedClient(HttpClient client, Role role = Role.Viewer) {
-      // Generate a unique user for each authentication to ensure test isolation
       string email = $"testuser-{System.Guid.NewGuid()}@example.com";
       string password = "Password123!";
 
-      // Register the new user
-      // Note: The API doesn't let us set a role on creation, so the 'role' parameter is for future use
-      // if the API is extended. All users will be created as Viewers initially.
-      UserRequest registrationRequest = new(email, password);
+      // Register the new user using an anonymous object
+      var registrationRequest = new { Email = email, Password = password };
       await client.PostAsJsonAsync("/api/users", registrationRequest);
 
-      // Log in as the new user
-      AuthRequest loginRequest = new(email, password);
+      // Log in as the new user using a dictionary
+      var loginRequest = new Dictionary<string, string> {
+        { "email", email },
+        { "password", password }
+      };
       HttpResponseMessage loginResponse = await client.PostAsJsonAsync("/api/auth", loginRequest);
       loginResponse.EnsureSuccessStatusCode();
 
-      AuthResultDto? authResult = await loginResponse.Content.ReadFromJsonAsync<AuthResultDto>();
+      // Deserialize to a JsonElement to extract the token
+      using JsonDocument doc = await JsonDocument.ParseAsync(await loginResponse.Content.ReadAsStreamAsync());
+      string accessToken = doc.RootElement.GetProperty("accessToken").GetString()!;
 
-      // Set the Authorization header for subsequent requests
-      client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authResult!.AccessToken);
+      client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
       return client;
     }
