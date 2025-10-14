@@ -8,14 +8,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace IntegrationTests {
-  public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory> {
-    private readonly HttpClient _client;
-    private readonly CustomWebApplicationFactory _factory;
-
-    public AuthEndpointsTests(CustomWebApplicationFactory factory) {
-      _factory = factory;
-      _client = factory.CreateClient();
-    }
+  public class AuthEndpointsTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory> {
+    private readonly HttpClient _client = factory.CreateClient();
+    private readonly CustomWebApplicationFactory _factory = factory;
 
     [Fact]
     public async Task Register_WithValidData_ShouldReturnCreated() {

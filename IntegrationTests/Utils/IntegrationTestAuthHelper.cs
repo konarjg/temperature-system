@@ -20,26 +20,26 @@ namespace IntegrationTests.Utils {
       string password = "Password123!";
 
       var registrationRequest = new { Email = email, Password = password };
-      var createResponse = await client.PostAsJsonAsync("/api/users", registrationRequest);
+      HttpResponseMessage createResponse = await client.PostAsJsonAsync("/api/users", registrationRequest);
       createResponse.EnsureSuccessStatusCode();
 
-      var mockEmailService = factory.Services.GetRequiredService<Domain.Services.External.IEmailService>() as ExternalServiceAdapters.EmailService.MockEmailService;
+      ExternalServiceAdapters.EmailService.MockEmailService? mockEmailService = factory.Services.GetRequiredService<Domain.Services.External.IEmailService>() as ExternalServiceAdapters.EmailService.MockEmailService;
       Assert.NotNull(mockEmailService?.LastVerificationToken);
 
-      var verifyResponse = await client.GetAsync($"/api/auth/verify/{mockEmailService.LastVerificationToken}");
+      HttpResponseMessage verifyResponse = await client.GetAsync($"/api/auth/verify/{mockEmailService.LastVerificationToken}");
       verifyResponse.EnsureSuccessStatusCode();
 
       if (role == Role.Admin)
       {
-        using var scope = factory.Services.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
+        using IServiceScope scope = factory.Services.CreateScope();
+        TestDatabaseContext dbContext = scope.ServiceProvider.GetRequiredService<TestDatabaseContext>();
         User? user = dbContext.Users.FirstOrDefault(u => u.Email == email);
         Assert.NotNull(user);
         user.Role = Role.Admin;
         await dbContext.SaveChangesAsync();
       }
 
-      var loginRequest = new Dictionary<string, string> {
+      Dictionary<string, string> loginRequest = new Dictionary<string, string> {
         { "email", email },
         { "password", password }
       };
