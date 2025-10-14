@@ -9,6 +9,7 @@ using DatabaseAdapters.Repositories.SqLite;
 using Domain.Services.External;
 using ExternalServiceAdapters.EmailService;
 using ExternalServiceAdapters.TemperatureSensorReader;
+using System.Collections.Generic;
 
 namespace IntegrationTests
 {
@@ -20,19 +21,11 @@ namespace IntegrationTests
 
             builder.ConfigureServices(services =>
             {
-                var dbContextDescriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(DbContextOptions<SqLiteDatabaseContext>));
-                if (dbContextDescriptor != null)
-                {
-                    services.Remove(dbContextDescriptor);
-                }
+                var dbContextDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<SqLiteDatabaseContext>));
+                if (dbContextDescriptor != null) services.Remove(dbContextDescriptor);
 
-                var iDbContextDescriptor = services.SingleOrDefault(
-                    d => d.ServiceType == typeof(IDatabaseContext));
-                if (iDbContextDescriptor != null)
-                {
-                    services.Remove(iDbContextDescriptor);
-                }
+                var iDbContextDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IDatabaseContext));
+                if (iDbContextDescriptor != null) services.Remove(iDbContextDescriptor);
 
                 services.AddDbContext<IDatabaseContext, DatabaseAdapters.Repositories.Test.TestDatabaseContext>(options =>
                 {
@@ -40,13 +33,11 @@ namespace IntegrationTests
                 });
 
                 var emailServiceDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IEmailService));
-                if (emailServiceDescriptor != null)
-                    services.Remove(emailServiceDescriptor);
+                if (emailServiceDescriptor != null) services.Remove(emailServiceDescriptor);
                 services.AddSingleton<IEmailService, MockEmailService>();
 
                 var sensorReaderDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(ITemperatureSensorReader));
-                if (sensorReaderDescriptor != null)
-                    services.Remove(sensorReaderDescriptor);
+                if (sensorReaderDescriptor != null) services.Remove(sensorReaderDescriptor);
                 services.AddSingleton<ITemperatureSensorReader, FakeTemperatureSensorReader>();
             });
         }

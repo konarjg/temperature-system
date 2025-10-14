@@ -5,27 +5,27 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Domain.Entities.Util;
+using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace IntegrationTests.Utils {
   public static class IntegrationTestAuthHelper {
-    public static async Task<HttpClient> GetAuthenticatedClient(HttpClient client, Role role = Role.Viewer) {
+    public static async Task<HttpClient> GetAuthenticatedClient(WebApplicationFactory<Program> factory, Role role = Role.Viewer) {
+      HttpClient client = factory.CreateClient();
       string email = $"testuser-{System.Guid.NewGuid()}@example.com";
       string password = "Password123!";
 
-      // Register the new user using an anonymous object
       var registrationRequest = new { Email = email, Password = password };
       await client.PostAsJsonAsync("/api/users", registrationRequest);
 
-      // Log in as the new user using a dictionary
       var loginRequest = new Dictionary<string, string> {
         { "email", email },
         { "password", password }
       };
       HttpResponseMessage loginResponse = await client.PostAsJsonAsync("/api/auth", loginRequest);
       loginResponse.EnsureSuccessStatusCode();
-
-      // Deserialize to a JsonElement to extract the token
-      using JsonDocument doc = await JsonDocument.ParseAsync(await loginResponse.Content.ReadAsStreamAsync());
+      
+      string responseString = await loginResponse.Content.ReadAsStringAsync();
+      using JsonDocument doc = JsonDocument.Parse(responseString);
       string accessToken = doc.RootElement.GetProperty("accessToken").GetString()!;
 
       client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);

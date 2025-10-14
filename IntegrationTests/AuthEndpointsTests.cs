@@ -16,16 +16,14 @@ namespace IntegrationTests {
 
     [Fact]
     public async Task Register_WithValidData_ShouldReturnCreated() {
-      // Arrange
       var registrationRequest = new { Email = "test.user@example.com", Password = "Password123!" };
 
-      // Act
       HttpResponseMessage response = await _client.PostAsJsonAsync("/api/users", registrationRequest);
 
-      // Assert
       Assert.Equal(HttpStatusCode.Created, response.StatusCode);
 
-      using JsonDocument doc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+      string responseString = await response.Content.ReadAsStringAsync();
+      using JsonDocument doc = JsonDocument.Parse(responseString);
       JsonElement root = doc.RootElement;
 
       Assert.Equal(registrationRequest.Email, root.GetProperty("email").GetString());
@@ -34,26 +32,21 @@ namespace IntegrationTests {
 
     [Fact]
     public async Task Register_WithDuplicateEmail_ShouldReturnConflict() {
-      // Arrange
       var registrationRequest = new { Email = "duplicate@example.com", Password = "Password123!" };
-      // First request should succeed
       await _client.PostAsJsonAsync("/api/users", registrationRequest);
-
-      // Act
-      // Second request with the same email should fail
+      
       HttpResponseMessage response = await _client.PostAsJsonAsync("/api/users", registrationRequest);
-
-      // Assert
+      
       Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
     public async Task Login_WithValidCredentials_ShouldReturnOkAndToken() {
-      // Arrange
-      // First, create a user to log in with
       var registrationRequest = new { Email = "login.user@example.com", Password = "Password123!" };
       HttpResponseMessage createResponse = await _client.PostAsJsonAsync("/api/users", registrationRequest);
-      using JsonDocument createdUserDoc = await JsonDocument.ParseAsync(await createResponse.Content.ReadAsStreamAsync());
+      
+      string createdUserString = await createResponse.Content.ReadAsStringAsync();
+      using JsonDocument createdUserDoc = JsonDocument.Parse(createdUserString);
       long createdUserId = createdUserDoc.RootElement.GetProperty("id").GetInt64();
 
       var loginRequest = new Dictionary<string, string> {
@@ -61,14 +54,12 @@ namespace IntegrationTests {
         { "password", "Password123!" }
       };
 
-      // Act
       HttpResponseMessage response = await _client.PostAsJsonAsync("/api/auth", loginRequest);
 
-      // Assert
       response.EnsureSuccessStatusCode();
-      Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-      using JsonDocument authResultDoc = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync());
+      string authResultString = await response.Content.ReadAsStringAsync();
+      using JsonDocument authResultDoc = JsonDocument.Parse(authResultString);
       JsonElement authResultRoot = authResultDoc.RootElement;
 
       Assert.NotEmpty(authResultRoot.GetProperty("accessToken").GetString());
@@ -77,16 +68,13 @@ namespace IntegrationTests {
 
     [Fact]
     public async Task Login_WithInvalidCredentials_ShouldReturnUnauthorized() {
-      // Arrange
       var loginRequest = new Dictionary<string, string> {
         { "email", "login.user@example.com" },
         { "password", "WrongPassword!" }
       };
-
-      // Act
+      
       HttpResponseMessage response = await _client.PostAsJsonAsync("/api/auth", loginRequest);
-
-      // Assert
+      
       Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
   }
