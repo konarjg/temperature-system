@@ -4,15 +4,13 @@ using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace IntegrationTests {
-  public class AuthEndpointsTests : IClassFixture<CustomWebApplicationFactory> {
-    private readonly HttpClient _client;
-
-    public AuthEndpointsTests(CustomWebApplicationFactory factory) {
-      _client = factory.CreateClient();
-    }
+  public class AuthEndpointsTests(CustomWebApplicationFactory factory) : IClassFixture<CustomWebApplicationFactory> {
+    private readonly HttpClient _client = factory.CreateClient();
+    private readonly CustomWebApplicationFactory _factory = factory;
 
     [Fact]
     public async Task Register_WithValidData_ShouldReturnCreated() {
@@ -41,29 +39,32 @@ namespace IntegrationTests {
     }
 
     [Fact]
-    public async Task Login_WithValidCredentials_ShouldReturnOkAndToken() {
-      var registrationRequest = new { Email = "login.user@example.com", Password = "Password123!" };
-      HttpResponseMessage createResponse = await _client.PostAsJsonAsync("/api/users", registrationRequest);
-      
-      string createdUserString = await createResponse.Content.ReadAsStringAsync();
-      using JsonDocument createdUserDoc = JsonDocument.Parse(createdUserString);
-      long createdUserId = createdUserDoc.RootElement.GetProperty("id").GetInt64();
+    public async Task Login_WithValidCredentials_ShouldReturnOkAndToken()
+    {
+        var registrationRequest = new { Email = "login.user@example.com", Password = "Password123!" };
+        var createResponse = await _client.PostAsJsonAsync("/api/users", registrationRequest);
+        createResponse.EnsureSuccessStatusCode();
 
-      var loginRequest = new Dictionary<string, string> {
-        { "email", "login.user@example.com" },
-        { "password", "Password123!" }
-      };
+        string createdUserString = await createResponse.Content.ReadAsStringAsync();
+        using JsonDocument createdUserDoc = JsonDocument.Parse(createdUserString);
+        long createdUserId = createdUserDoc.RootElement.GetProperty("id").GetInt64();
 
-      HttpResponseMessage response = await _client.PostAsJsonAsync("/api/auth", loginRequest);
+        var mockEmailService = _factory.Services.GetRequiredService<Domain.Services.External.IEmailService>() as ExternalServiceAdapters.EmailService.MockEmailService;
+        Assert.NotNull(mockEmailService?.LastVerificationToken);
 
-      response.EnsureSuccessStatusCode();
+        var verifyResponse = await _client.GetAsync($"/api/auth/verify/{mockEmailService.LastVerificationToken}");
+        verifyResponse.EnsureSuccessStatusCode();
 
-      string authResultString = await response.Content.ReadAsStringAsync();
-      using JsonDocument authResultDoc = JsonDocument.Parse(authResultString);
-      JsonElement authResultRoot = authResultDoc.RootElement;
+        var loginRequest = new { Email = "login.user@example.com", Password = "Password123!" };
+        var response = await _client.PostAsJsonAsync("/api/auth", loginRequest);
+        response.EnsureSuccessStatusCode();
 
-      Assert.NotEmpty(authResultRoot.GetProperty("accessToken").GetString());
-      Assert.Equal(createdUserId, authResultRoot.GetProperty("userId").GetInt64());
+        string authResultString = await response.Content.ReadAsStringAsync();
+        using JsonDocument authResultDoc = JsonDocument.Parse(authResultString);
+        JsonElement authResultRoot = authResultDoc.RootElement;
+
+        Assert.NotEmpty(authResultRoot.GetProperty("accessToken").GetString());
+        Assert.Equal(createdUserId, authResultRoot.GetProperty("userId").GetInt64());
     }
 
     [Fact]
