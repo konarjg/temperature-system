@@ -18,9 +18,9 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IU
   }
 
   public async Task<PagedResult<Measurement>> GetHistoryPageAsync(DateTime startDate,
-    DateTime endDate, int page, int pageSize, long? sensorId = null) {
+    DateTime endDate, DateTime? cursor, int pageSize, long? sensorId = null) {
     
-    return await measurementRepository.GetHistoryPageAsync(startDate, endDate, page, pageSize, sensorId);
+    return await measurementRepository.GetHistoryPageAsync(startDate, endDate, cursor, pageSize, sensorId);
   }
   
   public async Task<List<AggregatedMeasurement>> GetAggregatedHistoryForSensorAsync(DateTime startDate,

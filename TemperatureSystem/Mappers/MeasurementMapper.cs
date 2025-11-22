@@ -11,6 +11,6 @@ public static class MeasurementMapper {
   }
 
   public static PagedResultDto<MeasurementDto> ToDto(this PagedResult<Measurement> result) {
-    return new PagedResultDto<MeasurementDto>(result.Items.Select(m => m.ToDto()).ToList(),result.TotalCount,result.Page,result.PageSize);
+    return new PagedResultDto<MeasurementDto>(result.Items.Select(m => m.ToDto()).ToList(),result.NextCursor, result.HasNextPage);
   }
 }
