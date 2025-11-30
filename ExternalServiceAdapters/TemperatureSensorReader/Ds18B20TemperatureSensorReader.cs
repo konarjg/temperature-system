@@ -6,7 +6,9 @@ using Domain.Services.Interfaces;
 using Iot.Device.OneWire;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using Domain.Entities.Util;
 using UnitsNet;
 
@@ -24,18 +26,17 @@ public class Ds18B20TemperatureSensorReader(
 
         foreach (Sensor sensor in sensors) {
             try {
-                OneWireThermometerDevice device = new OneWireThermometerDevice(sensor.DeviceAddress, OneWireBusId);
+                OneWireThermometerDevice device = new(sensor.DeviceAddress, OneWireBusId);
                 
                 Temperature reading = await device.ReadTemperatureAsync();
 
-                if (Math.Abs(reading.DegreesCelsius - PowerOnResetTemperature) < Epsilon)
-                {
-                    logger.LogWarning("Sensor at address {Address} returned a power-on-reset value of 85°C, indicating a read error.", sensor.DeviceAddress);
+                if (Math.Abs(reading.DegreesCelsius - PowerOnResetTemperature) < Epsilon) {
+                    logger.LogWarning("Sensor at address {Address} returned a power-on-reset value of 85°C.", sensor.DeviceAddress);
                     sensor.State = SensorState.Unavailable;
                     continue;
                 }
 
-                Measurement newMeasurement = new() {
+                Measurement newMeasurement = new Measurement {
                     Timestamp = DateTime.UtcNow,
                     TemperatureCelsius = (float)reading.DegreesCelsius,
                     SensorId = sensor.Id,
@@ -44,13 +45,13 @@ public class Ds18B20TemperatureSensorReader(
                 
                 sensor.State = SensorState.Operational;
                 measurements.Add(newMeasurement);
-            }
-            catch (DirectoryNotFoundException ex) {
-                logger.LogError(ex, "Failed to read from sensor {Address}. The 1-Wire bus or device directory was not found. Is the interface enabled?", sensor.DeviceAddress);
+            } catch (DirectoryNotFoundException) {
+                logger.LogWarning("Sensor {Address} not found on bus. Check connection.", sensor.DeviceAddress);
+            } catch (IOException) {
+                logger.LogWarning("Failed to read from sensor {Address}. CRC check failed or device disconnected.", sensor.DeviceAddress);
                 sensor.State = SensorState.Unavailable;
-            }
-            catch (IOException ex) {
-                logger.LogError(ex, "Failed to read from sensor {Address}. This may indicate it is disconnected.", sensor.DeviceAddress);
+            } catch (Exception ex) {
+                logger.LogError(ex, "Unexpected error reading sensor {Address}.", sensor.DeviceAddress);
                 sensor.State = SensorState.Unavailable;
             }
         }

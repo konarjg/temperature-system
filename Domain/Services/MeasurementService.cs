@@ -9,7 +9,7 @@ using Records;
 using Repositories;
 using Util;
 
-public class MeasurementService(ILogger<MeasurementService> logger, IMeasurementRepository measurementRepository, ITemperatureSensorReader temperatureSensorReader, INotificationService<Measurement> measurementNotificationService, IUnitOfWork unitOfWork) : IMeasurementService {
+public class MeasurementService(ILogger<MeasurementService> logger, IMeasurementRepository measurementRepository, ITemperatureSensorReader temperatureSensorReader, INotificationService<List<Measurement>> measurementNotificationService, IUnitOfWork unitOfWork) : IMeasurementService {
 
   public async Task<Measurement?> GetByIdAsync(long id) {
     return await measurementRepository.GetByIdAsync(id);
@@ -20,9 +20,9 @@ public class MeasurementService(ILogger<MeasurementService> logger, IMeasurement
   }
 
   public async Task<PagedResult<Measurement>> GetHistoryPageAsync(DateTime startDate,
-    DateTime endDate, int page, int pageSize, long? sensorId = null) {
+    DateTime endDate, DateTime? cursor, int pageSize, long? sensorId = null) {
     
-    return await measurementRepository.GetHistoryPageAsync(startDate, endDate, page, pageSize, sensorId);
+    return await measurementRepository.GetHistoryPageAsync(startDate, endDate, cursor, pageSize, sensorId);
   }
   
   public async Task<List<AggregatedMeasurement>> GetAggregatedHistoryForSensorAsync(DateTime startDate,
@@ -49,12 +49,8 @@ public class MeasurementService(ILogger<MeasurementService> logger, IMeasurement
   }
   public async Task<bool> PerformMeasurements() {
     List<Measurement> measurements = await temperatureSensorReader.ReadAsync();
-
-    foreach (Measurement measurement in measurements) {
-      await measurementNotificationService.NotifyChangeAsync(measurement);
-      logger.LogInformation($"Temperature read from sensor {measurement.SensorId}: {measurement.TemperatureCelsius} C");
-    }
     
+    await measurementNotificationService.NotifyChangeAsync(measurements);
     await measurementRepository.AddRangeAsync(measurements);
     
     return await unitOfWork.CompleteAsync() != 0;

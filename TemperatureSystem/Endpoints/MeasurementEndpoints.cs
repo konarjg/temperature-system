@@ -22,7 +22,7 @@ public record HistoryPageQueryParameters(
   [FromQuery] DateTime StartDate,
   [FromQuery] DateTime EndDate,
   [FromQuery][Range(1, 100)] int PageSize = 100,
-  [FromQuery][Range(1, int.MaxValue)] int Page = 1,
+  [FromQuery] DateTime? Cursor = null,
   [FromQuery] long? SensorId = null
 );
 
@@ -60,7 +60,7 @@ public static class MeasurementEndpoints {
       return Results.ValidationProblem(errors);
     }
 
-    PagedResult<Measurement> history = await measurementService.GetHistoryPageAsync(query.StartDate, query.EndDate, query.Page, query.PageSize, query.SensorId);
+    PagedResult<Measurement> history = await measurementService.GetHistoryPageAsync(query.StartDate, query.EndDate, query.Cursor, query.PageSize, query.SensorId);
     
     return Results.Ok(history.ToDto());
   }

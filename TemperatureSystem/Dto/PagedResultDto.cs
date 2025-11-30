@@ -1,3 +1,3 @@
 ﻿namespace TemperatureSystem.Dto;
 
-public record PagedResultDto<T>(List<T> Items, int TotalCount, int Page, int PageSize);
+public record PagedResultDto<T>(List<T> Items, DateTime? NextCursor, bool HasNextPage);
