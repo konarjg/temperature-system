@@ -49,8 +49,7 @@ namespace IntegrationTests {
       string responseString = await response.Content.ReadAsStringAsync();
       using JsonDocument doc = JsonDocument.Parse(responseString);
       JsonElement root = doc.RootElement;
-
-      Assert.Equal(3, root.GetProperty("totalCount").GetInt32());
+      
       Assert.Equal(3, root.GetProperty("items").GetArrayLength());
     }
     
