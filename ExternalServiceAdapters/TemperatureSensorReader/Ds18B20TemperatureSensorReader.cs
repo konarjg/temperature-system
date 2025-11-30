@@ -7,6 +7,7 @@ using Iot.Device.OneWire;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using Domain.Entities.Util;
 using UnitsNet;
 
 public class Ds18B20TemperatureSensorReader(
@@ -30,6 +31,7 @@ public class Ds18B20TemperatureSensorReader(
                 if (Math.Abs(reading.DegreesCelsius - PowerOnResetTemperature) < Epsilon)
                 {
                     logger.LogWarning("Sensor at address {Address} returned a power-on-reset value of 85°C, indicating a read error.", sensor.DeviceAddress);
+                    sensor.State = SensorState.Unavailable;
                     continue;
                 }
 
@@ -40,13 +42,16 @@ public class Ds18B20TemperatureSensorReader(
                     Sensor = sensor
                 };
                 
+                sensor.State = SensorState.Operational;
                 measurements.Add(newMeasurement);
             }
             catch (DirectoryNotFoundException ex) {
                 logger.LogError(ex, "Failed to read from sensor {Address}. The 1-Wire bus or device directory was not found. Is the interface enabled?", sensor.DeviceAddress);
+                sensor.State = SensorState.Unavailable;
             }
             catch (IOException ex) {
                 logger.LogError(ex, "Failed to read from sensor {Address}. This may indicate it is disconnected.", sensor.DeviceAddress);
+                sensor.State = SensorState.Unavailable;
             }
         }
 

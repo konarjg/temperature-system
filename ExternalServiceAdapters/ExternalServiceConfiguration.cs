@@ -11,7 +11,7 @@ using TokenGenerator;
 
 public static class ExternalServiceConfiguration {
   public static IServiceCollection AddExternalServices(this IServiceCollection services) {
-    services.AddScoped<IEmailService,MockEmailService>();
+    services.AddScoped<IEmailService,GmailEmailService>();
     services.AddScoped<IEmailSettingsProvider,ConfigurationEmailSettingsProvider>();
     services.AddScoped<IPasswordSecurity,Argon2PasswordSecurity>();
     services.AddScoped<ITokenGenerator,JwtTokenGenerator>();

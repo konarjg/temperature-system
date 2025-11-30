@@ -1,6 +1,7 @@
 ﻿namespace ExternalServiceAdapters.TemperatureSensorReader;
 
 using Domain.Entities;
+using Domain.Entities.Util;
 using Domain.Repositories;
 using Domain.Services.External;
 using Domain.Services.Interfaces;
@@ -22,6 +23,7 @@ public class FakeTemperatureSensorReader(ISensorService sensorService) : ITemper
       await Task.Delay(ConversionTimeMs);
 
       if (_random.NextSingle() < FailureChance) {
+        sensor.State = SensorState.Unavailable;
         continue;
       }
 
@@ -35,6 +37,7 @@ public class FakeTemperatureSensorReader(ISensorService sensorService) : ITemper
         TemperatureCelsius = currentTemperature
       };
       
+      sensor.State = SensorState.Operational;
       measurements.Add(newMeasurement);
     }
 
