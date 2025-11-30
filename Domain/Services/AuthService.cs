@@ -81,7 +81,9 @@ public class AuthService(ITokenGenerator tokenGenerator, IVerificationTokenRepos
     }
 
     string body = string.Format(VerificationEmailBodyFormat,emailSettingsProvider.VerificationUrl,token.Token);
-    return await emailService.SendEmail(VerificationEmailSubject, body, user.Email) ? new RegisterResult(user, RegisterState.Success) : new RegisterResult(null, RegisterState.ServerError);
+    return await emailService.SendEmail(VerificationEmailSubject, body, user.Email) 
+      ? new RegisterResult(user, RegisterState.Success) 
+      : new RegisterResult(null, RegisterState.ServerError);
   }
   
   public async Task<OperationResult> VerifyAsync(string token) {
