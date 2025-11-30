@@ -6,7 +6,6 @@ using Domain.Services.Interfaces;
 using Iot.Device.OneWire;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Domain.Entities.Util;
