@@ -9,8 +9,8 @@ using Records;
 using Repositories;
 using Util;
 
-public class MeasurementService(ILogger<MeasurementService> logger, IMeasurementRepository measurementRepository, ITemperatureSensorReader temperatureSensorReader, INotificationService<List<Measurement>> measurementNotificationService, IUnitOfWork unitOfWork) : IMeasurementService {
-
+public class MeasurementService(ISensorRepository sensorRepository, IMeasurementRepository measurementRepository, ITemperatureSensorReader temperatureSensorReader, INotificationService<Measurement> measurementNotificationService, INotificationService<Sensor> sensorNotificationService, IUnitOfWork unitOfWork) : IMeasurementService {
+  
   public async Task<Measurement?> GetByIdAsync(long id) {
     return await measurementRepository.GetByIdAsync(id);
   }
@@ -31,11 +31,6 @@ public class MeasurementService(ILogger<MeasurementService> logger, IMeasurement
     
     return await measurementRepository.GetAggregatedHistoryForSensorAsync(startDate,endDate,granularity, sensorId);
   }
-  
-  public async Task<bool> CreateRangeAsync(List<Measurement> measurements) {
-    await measurementRepository.AddRangeAsync(measurements);
-    return await unitOfWork.CompleteAsync() != 0;
-  }
 
   public async Task<OperationResult> DeleteByIdAsync(long id) {
     Measurement? measurement = await measurementRepository.GetByIdAsync(id);
@@ -47,12 +42,27 @@ public class MeasurementService(ILogger<MeasurementService> logger, IMeasurement
     measurementRepository.Remove(measurement);
     return await unitOfWork.CompleteAsync() != 0 ? OperationResult.Success : OperationResult.ServerError;
   }
+  
   public async Task<bool> PerformMeasurements() {
-    List<Measurement> measurements = await temperatureSensorReader.ReadAsync();
+    List<Sensor> sensors = await sensorRepository.GetAllAsync();
+    temperatureSensorReader.MeasurementPerformed += OnMeasurementPerformed;
+    temperatureSensorReader.SensorStateChanged += OnSensorStateChanged;
     
-    await measurementNotificationService.NotifyChangeAsync(measurements);
+    List<Measurement> measurements = await temperatureSensorReader.ReadAsync(sensors);
+    
+    temperatureSensorReader.MeasurementPerformed -= OnMeasurementPerformed;
+    temperatureSensorReader.SensorStateChanged -= OnSensorStateChanged;
+    
     await measurementRepository.AddRangeAsync(measurements);
     
     return await unitOfWork.CompleteAsync() != 0;
+  }
+
+  private void OnMeasurementPerformed(Measurement measurement) {
+    measurementNotificationService.NotifyChangeAsync(measurement);
+  }
+
+  private void OnSensorStateChanged(Sensor sensor) {
+    sensorNotificationService.NotifyChangeAsync(sensor);
   }
 }
