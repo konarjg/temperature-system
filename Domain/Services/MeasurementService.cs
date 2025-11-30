@@ -2,12 +2,14 @@
 
 using Entities;
 using Entities.Util;
+using External;
 using Interfaces;
+using Microsoft.Extensions.Logging;
 using Records;
 using Repositories;
 using Util;
 
-public class MeasurementService(IMeasurementRepository measurementRepository, IUnitOfWork unitOfWork) : IMeasurementService {
+public class MeasurementService(ILogger<MeasurementService> logger, IMeasurementRepository measurementRepository, ITemperatureSensorReader temperatureSensorReader, INotificationService<Measurement> measurementNotificationService, IUnitOfWork unitOfWork) : IMeasurementService {
 
   public async Task<Measurement?> GetByIdAsync(long id) {
     return await measurementRepository.GetByIdAsync(id);
@@ -44,5 +46,17 @@ public class MeasurementService(IMeasurementRepository measurementRepository, IU
     
     measurementRepository.Remove(measurement);
     return await unitOfWork.CompleteAsync() != 0 ? OperationResult.Success : OperationResult.ServerError;
+  }
+  public async Task<bool> PerformMeasurements() {
+    List<Measurement> measurements = await temperatureSensorReader.ReadAsync();
+
+    foreach (Measurement measurement in measurements) {
+      await measurementNotificationService.NotifyChangeAsync(measurement);
+      logger.LogInformation($"Temperature read from sensor {measurement.SensorId}: {measurement.TemperatureCelsius} C");
+    }
+    
+    await measurementRepository.AddRangeAsync(measurements);
+    
+    return await unitOfWork.CompleteAsync() != 0;
   }
 }

@@ -12,4 +12,5 @@ public interface IMeasurementService {
   Task<List<AggregatedMeasurement>> GetAggregatedHistoryForSensorAsync(DateTime startDate, DateTime endDate, MeasurementHistoryGranularity granularity, long sensorId);
   Task<bool> CreateRangeAsync(List<Measurement> measurements);
   Task<OperationResult> DeleteByIdAsync(long id);
+  Task<bool> PerformMeasurements();
 }
