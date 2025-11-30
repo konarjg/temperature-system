@@ -5,6 +5,7 @@ using Domain.Entities.Util;
 using Domain.Services.Interfaces;
 using Domain.Services.Util;
 using Dto;
+using ExternalServiceAdapters.NotificationService.Sensor;
 using Mappers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -66,6 +67,8 @@ public static class SensorEndpoints {
   }
 
   public static IEndpointRouteBuilder MapSensorEndpoints(this IEndpointRouteBuilder app) {
+    app.MapHub<SensorHub>("/hub/sensors").RequireAuthorization();
+    
     RouteGroupBuilder group = app.MapGroup("/api/sensors");
 
     group.MapGet("/{id:long}",GetById).WithName(GetByIdRoute).RequireAuthorization();

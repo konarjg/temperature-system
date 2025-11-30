@@ -4,7 +4,7 @@ using Domain.Entities;
 using Domain.Services.External;
 using Domain.Services.Interfaces;
 
-public class MeasurementScheduler(IServiceScopeFactory scopeFactory, INotificationService<List<Measurement>> notificationService, IConfiguration configuration, ILogger<MeasurementScheduler> logger) : BackgroundService {
+public class MeasurementScheduler(IServiceScopeFactory scopeFactory, IConfiguration configuration, ILogger<MeasurementScheduler> logger) : BackgroundService {
   
   protected override async Task ExecuteAsync(CancellationToken stoppingToken) {
     while (!stoppingToken.IsCancellationRequested) {
@@ -17,19 +17,5 @@ public class MeasurementScheduler(IServiceScopeFactory scopeFactory, INotificati
 
       await Task.Delay(TimeSpan.FromSeconds(int.Parse(configuration["Measurement:Interval"] ?? "10")), stoppingToken);
     }
-  }
-
-  private async Task<bool> ReadTemperatureAsync(ITemperatureSensorReader reader, IMeasurementService measurementService) {
-    List<Measurement> measurements = await reader.ReadAsync();
-
-    if (measurements.Count == 0) {
-      return false;
-    }
-    
-    logger.LogInformation("Read {Count} measurements. Broadcasting and saving...", measurements.Count);
-    
-    await notificationService.NotifyChangeAsync(measurements);
-    
-    return await measurementService.CreateRangeAsync(measurements);
   }
 }

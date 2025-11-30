@@ -12,16 +12,16 @@ using System.Threading.Tasks;
 using Domain.Entities.Util;
 using UnitsNet;
 
-public class Ds18B20TemperatureSensorReader(
-    ISensorService sensorService,
-    ILogger<Ds18B20TemperatureSensorReader> logger) : ITemperatureSensorReader {
+public class Ds18B20TemperatureSensorReader(ILogger<Ds18B20TemperatureSensorReader> logger) : ITemperatureSensorReader {
     
     private const string OneWireBusId = "w1";
     private const double PowerOnResetTemperature = 85.0;
     private const double Epsilon = 0.001;
 
-    public async Task<List<Measurement>> ReadAsync() {
-        List<Sensor> sensors = await sensorService.GetAllAsync();
+    public event ITemperatureSensorReader.OnMeasurementPerformed? MeasurementPerformed;
+    public event ITemperatureSensorReader.OnSensorStateChanged? SensorStateChanged;
+
+    public async Task<List<Measurement>> ReadAsync(List<Sensor> sensors) {
         List<Measurement> measurements = new();
 
         foreach (Sensor sensor in sensors) {
@@ -33,6 +33,7 @@ public class Ds18B20TemperatureSensorReader(
                 if (Math.Abs(reading.DegreesCelsius - PowerOnResetTemperature) < Epsilon) {
                     logger.LogWarning("Sensor at address {Address} returned a power-on-reset value of 85°C.", sensor.DeviceAddress);
                     sensor.State = SensorState.Unavailable;
+                    SensorStateChanged?.Invoke(sensor);
                     continue;
                 }
 
@@ -44,15 +45,21 @@ public class Ds18B20TemperatureSensorReader(
                 };
                 
                 sensor.State = SensorState.Operational;
+                SensorStateChanged?.Invoke(sensor);
+                MeasurementPerformed?.Invoke(newMeasurement);
                 measurements.Add(newMeasurement);
             } catch (DirectoryNotFoundException) {
                 logger.LogWarning("Sensor {Address} not found on bus. Check connection.", sensor.DeviceAddress);
+                sensor.State = SensorState.Unavailable;
+                SensorStateChanged?.Invoke(sensor);
             } catch (IOException) {
                 logger.LogWarning("Failed to read from sensor {Address}. CRC check failed or device disconnected.", sensor.DeviceAddress);
                 sensor.State = SensorState.Unavailable;
+                SensorStateChanged?.Invoke(sensor);
             } catch (Exception ex) {
                 logger.LogError(ex, "Unexpected error reading sensor {Address}.", sensor.DeviceAddress);
                 sensor.State = SensorState.Unavailable;
+                SensorStateChanged?.Invoke(sensor);
             }
         }
 

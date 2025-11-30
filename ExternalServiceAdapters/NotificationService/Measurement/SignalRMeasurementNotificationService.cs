@@ -10,29 +10,17 @@ using System.Threading.Tasks;
 
 public class SignalRMeasurementNotificationService(
     IHubContext<MeasurementHub> hubContext, 
-    ILogger<SignalRMeasurementNotificationService> logger) : INotificationService<List<Measurement>> {
+    ILogger<SignalRMeasurementNotificationService> logger) : INotificationService<Measurement> {
 
     private const string ClientMethodName = "ReceiveMeasurement";
   
-    public async Task NotifyChangeAsync(List<Measurement> contents) {
-        if (contents.Count == 0) {
-            return;
-        }
+    public async Task NotifyChangeAsync(Measurement measurement) {
+        logger.LogInformation($"Broadcasting measurement {measurement.TemperatureCelsius} *C at {measurement.Timestamp}");
         
-        logger.LogInformation(
-            "Broadcasting {Count} measurements to SignalR clients. Method: {ClientMethod}", 
-            contents.Count, 
-            ClientMethodName
-        );
-        
-        List<Task> notifications = contents.Select(content => {
-            string groupId = content.SensorId.ToString();
+        string groupId = measurement.SensorId.ToString();
 
-            return hubContext.Clients
-                .Group(groupId)
-                .SendAsync(ClientMethodName, content.ToNotification());
-        }).ToList();
-        
-        await Task.WhenAll(notifications);
+        await hubContext.Clients
+                        .Group(groupId)
+                        .SendAsync(ClientMethodName,measurement.ToNotification());
     }
 }

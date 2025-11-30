@@ -6,17 +6,18 @@ using Domain.Repositories;
 using Domain.Services.External;
 using Domain.Services.Interfaces;
 
-public class FakeTemperatureSensorReader(ISensorService sensorService) : ITemperatureSensorReader {
+public class FakeTemperatureSensorReader : ITemperatureSensorReader {
 
   private readonly Random _random = new();
   private const float BaseTemperatureCelsius = 22.5f;
   private const float MaxFluctuation = 0.5f;
   private const int ConversionTimeMs = 750;
   private const float FailureChance = 0.05f;
+
+  public event ITemperatureSensorReader.OnMeasurementPerformed? MeasurementPerformed;
+  public event ITemperatureSensorReader.OnSensorStateChanged? SensorStateChanged;
   
-  public async Task<List<Measurement>> ReadAsync() {
-    List<Sensor> sensors = await sensorService.GetAllAsync();
-    
+  public async Task<List<Measurement>> ReadAsync(List<Sensor> sensors) {
     List<Measurement> measurements = new();
 
     foreach (Sensor sensor in sensors) {
@@ -24,6 +25,7 @@ public class FakeTemperatureSensorReader(ISensorService sensorService) : ITemper
 
       if (_random.NextSingle() < FailureChance) {
         sensor.State = SensorState.Unavailable;
+        SensorStateChanged?.Invoke(sensor);
         continue;
       }
 
@@ -38,6 +40,9 @@ public class FakeTemperatureSensorReader(ISensorService sensorService) : ITemper
       };
       
       sensor.State = SensorState.Operational;
+      SensorStateChanged?.Invoke(sensor);
+      MeasurementPerformed?.Invoke(newMeasurement);
+      
       measurements.Add(newMeasurement);
     }
 
