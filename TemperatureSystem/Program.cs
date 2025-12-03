@@ -98,6 +98,7 @@ if (!app.Environment.IsEnvironment("Testing")) {
   try {
     DbContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
     dbContext.Database.Migrate();
+    dbContext.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
   }
   catch (Exception ex) {
     ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
