@@ -2,12 +2,16 @@ using System.Text;
 using System.Text.Json.Serialization;
 using DatabaseAdapters.Repositories.SqLite;
 using Domain;
+using Domain.Entities;
+using Domain.Entities.Util;
+using Domain.Services.External;
 using Domain.Services.Util;
 using ExternalServiceAdapters;
 using ExternalServiceAdapters.NotificationService.Measurement;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Protocols.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using TemperatureSystem.Endpoints;
 using TemperatureSystem.HostedServices;
@@ -96,9 +100,34 @@ if (!app.Environment.IsEnvironment("Testing")) {
   using IServiceScope scope = app.Services.CreateScope();
   
   try {
-    DbContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
+    SqLiteDatabaseContext dbContext = scope.ServiceProvider.GetRequiredService<SqLiteDatabaseContext>();
     dbContext.Database.Migrate();
     dbContext.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+    
+    User? admin = dbContext.Users.FirstOrDefault(u => u.Email == builder.Configuration["Admin:Email"]);
+
+    if (admin == null) {
+      IPasswordSecurity passwordSecurity = scope.ServiceProvider.GetRequiredService<IPasswordSecurity>();
+
+      admin = new User() {
+        Email = builder.Configuration["Admin:Email"] ?? throw new InvalidConfigurationException("Admin's user email must be specified."),
+        PasswordHash = passwordSecurity.Hash(builder.Configuration["Admin:Password"]
+                                             ?? throw new InvalidConfigurationException("Admin's user email must be specified.")),
+        Role = Role.Admin,
+        Deleted = null
+      };
+      
+      dbContext.Users.Add(admin);
+      dbContext.SaveChanges();
+      return;
+    }
+
+    if (admin.Role == Role.Admin) {
+      return;
+    }
+
+    admin.Role = Role.Admin;
+    dbContext.SaveChanges();
   }
   catch (Exception ex) {
     ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
