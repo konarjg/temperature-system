@@ -119,15 +119,11 @@ if (!app.Environment.IsEnvironment("Testing")) {
       
       dbContext.Users.Add(admin);
       dbContext.SaveChanges();
-      return;
     }
-
-    if (admin.Role == Role.Admin) {
-      return;
+    else if (admin.Role != Role.Admin) {
+      admin.Role = Role.Admin;
+      dbContext.SaveChanges();
     }
-
-    admin.Role = Role.Admin;
-    dbContext.SaveChanges();
   }
   catch (Exception ex) {
     ILogger<Program> logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
